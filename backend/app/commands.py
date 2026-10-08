@@ -7,6 +7,7 @@ import os
 import selectors
 import signal
 import socket
+import stat
 import subprocess
 import sys
 import threading
@@ -19,7 +20,7 @@ from uuid import uuid4
 from fastapi import Header
 from sqlalchemy import select
 
-from . import execution, patches
+from . import execution, patches, recovery
 from .command_schemas import Asset, Preview, Result, Run, Start, Stop, Workspace
 from .core import ROOT
 from .db import CommandAsset, CommandRun, PatchAsset, PatchRun
@@ -283,6 +284,9 @@ def persist(sessions, run_id, state, details):
         # stop_requested may have been committed while this process was reading output.
         details["stop_requested"] = details["stop_requested"] or row.details["stop_requested"]
         row.state, row.details = state, details
+        recovery.checkpoint(session, row, "executing" if state in ACTIVE else "finished",
+                            "active" if state in ACTIVE else
+                            "result_unknown" if state == "interrupted" else "completed")
         audit(
             session,
             row.project_id,
@@ -312,7 +316,7 @@ def expire_logs(sessions):
                 audit(session, row.project_id, "command_logs_expired", {"run_id": row.id})
 
 
-def reconcile(sessions):
+def reconcile(sessions, settings=None):
     with locked(sessions) as session:
         for row in rows(session):
             if row.state in ACTIVE:
@@ -325,6 +329,10 @@ def reconcile(sessions):
                 }
                 log(d, "平台重启，记录保留并标为待核对")
                 row.state, row.details = "interrupted", d
+                verdict, message = recovery.inspect(session, settings, row)
+                row.details = {**d, "message": message, "error_code":
+                               "PROCESS_STOP_UNCONFIRMED" if verdict == "result_unknown" else "INTERRUPTED"}
+                recovery.checkpoint(session, row, "reconciled", verdict, "平台启动时确定性核对，未自动重发")
                 audit(session, row.project_id, "command_interrupted", {"run_id": row.id})
 
 
@@ -460,6 +468,32 @@ def artifact(directory, asset, details):
     ]
 
 
+def read_artifact(settings, row):
+    if not row.details["artifacts"]:
+        raise BusinessError("ARTIFACT_PENDING", "结果产物尚未保存", 409)
+    fact = row.details["artifacts"][0]
+    # Open both the controlled parent and child without following replaced links.
+    parent_fd = os.open(settings.data_dir / "command-runs", os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+    try:
+        directory_fd = os.open(row.id, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=parent_fd)
+        try:
+            with os.fdopen(os.open("result.json", os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=directory_fd), "rb") as stream:
+                if not stat.S_ISREG(os.fstat(stream.fileno()).st_mode):
+                    raise BusinessError("ARTIFACT_CONFLICT", "结果必须是普通文件", 409)
+                raw = stream.read(16385)
+        finally:
+            os.close(directory_fd)
+    finally:
+        os.close(parent_fd)
+    if (len(raw) > 16384 or len(raw) != fact["size"]
+            or hashlib.sha256(raw).hexdigest() != fact["sha256"]):
+        raise BusinessError("ARTIFACT_CONFLICT", "结果产物被修改，不能作为原结果", 409)
+    try:
+        return Result.model_validate_json(raw)
+    except ValueError:
+        raise BusinessError("ARTIFACT_INVALID", "结果产物格式无效") from None
+
+
 class Manager:
     def __init__(self, sessions, settings):
         self.sessions, self.settings = sessions, settings
@@ -524,8 +558,12 @@ class Manager:
                 details = json.loads(json.dumps(run.details))
             with workspace_lock(self.settings, Path(asset.payload["root"])):
                 with locked(self.sessions) as session:
-                    prerequisites(session, self.settings, run.project_id, asset, run_id)
                     current = session.get(CommandRun, run_id)
+                    if current.state != "queued":
+                        return
+                    _, grant = prerequisites(session, self.settings, run.project_id, asset, run_id)
+                    if grant.id != current.details["authorization_id"]:
+                        raise BusinessError("AUTHORIZATION_CHANGED", "原授权已变化，不能继承执行", 409)
                     if current.details["stop_requested"] or self.shutdown.is_set():
                         details.update(
                             ended_at=timestamp(),
@@ -534,6 +572,7 @@ class Manager:
                             stop_requested=True,
                         )
                         current.state, current.details = "stopped", details
+                        recovery.checkpoint(session, current, "finished", "stopped")
                         return
                     if asset.payload["recipe_id"] == "static_preview" and not available(
                         asset.payload["port"]
@@ -546,6 +585,7 @@ class Manager:
                         "message": "启动意图已保存，正在创建可信进程",
                     }
                     details = dict(current.details)
+                    recovery.checkpoint(session, current, "launch_intent", "result_unknown")
                 directory = self.settings.data_dir / "command-runs"
                 directory.mkdir(mode=0o700, exist_ok=True)
                 directory = directory / run_id
@@ -573,8 +613,10 @@ class Manager:
                 ]
                 details["cwd"] = str(directory)
                 with locked(self.sessions) as session:
-                    prerequisites(session, self.settings, run.project_id, asset, run_id)
+                    _, grant = prerequisites(session, self.settings, run.project_id, asset, run_id)
                     current = session.get(CommandRun, run_id)
+                    if grant.id != current.details["authorization_id"]:
+                        raise BusinessError("AUTHORIZATION_CHANGED", "原授权已变化，不能继承执行", 409)
                     if current.details["stop_requested"] or self.shutdown.is_set():
                         details.update(
                             ended_at=timestamp(),
@@ -583,6 +625,7 @@ class Manager:
                             stop_requested=True,
                         )
                         current.state, current.details = "stopped", details
+                        recovery.checkpoint(session, current, "finished", "stopped")
                         return
                     process = subprocess.Popen(
                         details["argv"],
@@ -596,6 +639,7 @@ class Manager:
                     details.update(pid=process.pid, message="可信配方正在运行", health="starting")
                     log(details, "可信子进程已启动，输入为已审阅的私有快照")
                     current.state, current.details = "running", details
+                    recovery.checkpoint(session, current, "executing", "active")
                     audit(session, run.project_id, "command_running", {"run_id": run_id, "pid": process.pid})
                 self.monitor(process, run_id, asset, details, directory)
         except Exception as exc:
@@ -758,22 +802,10 @@ def install(app, sessions, settings):
     def get_artifact(project_id: str, run_id: str):
         with sessions() as session:
             row = owned(session, project_id, run_id, CommandRun)
-            if not row.details["artifacts"]:
-                raise BusinessError("ARTIFACT_PENDING", "结果产物尚未保存", 409)
-            fact = row.details["artifacts"][0]
-            directory = settings.data_dir / "command-runs" / row.id
-            with os.fdopen(os.open(directory / "result.json", os.O_RDONLY | os.O_NOFOLLOW), "rb") as stream:
-                raw = stream.read(16385)
-            if (
-                len(raw) > 16384
-                or len(raw) != fact["size"]
-                or hashlib.sha256(raw).hexdigest() != fact["sha256"]
-            ):
-                raise BusinessError("ARTIFACT_CONFLICT", "结果产物被修改，不能作为原结果", 409)
             try:
-                return Result.model_validate_json(raw)
-            except ValueError:
-                raise BusinessError("ARTIFACT_INVALID", "结果产物格式无效") from None
+                return read_artifact(settings, row)
+            except OSError:
+                raise BusinessError("ARTIFACT_CONFLICT", "结果文件缺失或无法安全读取", 409) from None
 
     @app.post(prefix + "/preview", response_model=Asset)
     def get_preview(project_id: str, body: Preview, idempotency_key: str | None = Header(default=None)):
@@ -840,6 +872,7 @@ def install(app, sessions, settings):
             )
             session.add(row)
             session.flush()
+            recovery.checkpoint(session, row, "queued", "not_executed", body.reason)
             audit(
                 session,
                 project_id,

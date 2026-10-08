@@ -679,4 +679,4 @@ def test_migration_from_a1_preserves_projects(tmp_path):
     engine.dispose()
     with TestClient(create_app(settings), headers={"Authorization": f"Bearer {settings.token}"}) as client:
         assert client.get(PREFIX + "/projects/old-project").json()["name"] == "旧项目"
-        assert client.get(PREFIX + "/health").json()["schema_version"] == "0006"
+        assert client.get(PREFIX + "/health").json()["schema_version"] == "0007"

@@ -152,6 +152,15 @@ class CommandAsset(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
 
 
+class CommandCheckpoint(Base):
+    __tablename__ = "command_checkpoints"
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    project_id: Mapped[str] = mapped_column(ForeignKey("projects.id"), index=True)
+    run_id: Mapped[str] = mapped_column(ForeignKey("command_runs.id"), index=True)
+    payload: Mapped[dict] = mapped_column(JSON)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+
+
 class CommandRun(Base):
     __tablename__ = "command_runs"
     id: Mapped[str] = mapped_column(String, primary_key=True)

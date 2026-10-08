@@ -85,3 +85,6 @@ summary { cursor:pointer; min-height:44px; padding:8px 0; } details form { max-w
 
 .command-workspace .baseline-link { white-space:normal; overflow-wrap:anywhere; line-height:1.6; }
 .command-workspace li { overflow-wrap:anywhere; word-break:break-word; }
+.recovery-workspace .topbar { gap:16px; }
+.recovery-workspace .topbar a { overflow-wrap:anywhere; }
+.recovery-workspace .quiet { white-space:normal; overflow-wrap:anywhere; }

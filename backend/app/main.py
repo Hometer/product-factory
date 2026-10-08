@@ -17,7 +17,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from starlette.exceptions import HTTPException
 
-from . import commands, execution, models, patches, planning, requirements
+from . import commands, execution, models, patches, planning, recovery, requirements
 from .core import ROOT, Settings, load_settings
 from .db import AuditEvent, Preview, Project, RequestRecord, connect
 from .scanner import BusinessError, canonical, digest, scan
@@ -106,7 +106,7 @@ def create_app(settings: Settings | None = None, model_provider=None) -> FastAPI
         with engine.begin() as connection:
             migration.attributes["connection"] = connection
             command.upgrade(migration, "head")
-        commands.reconcile(sessions)
+        commands.reconcile(sessions, settings)
         patches.recover_pending(sessions, settings)
         app.state.command_manager = commands.Manager(sessions, settings).start()
         stop, worker = models.start_worker(sessions, settings, model_provider or models.Provider())
@@ -199,7 +199,7 @@ def create_app(settings: Settings | None = None, model_provider=None) -> FastAPI
             raise BusinessError("SERVICE_UNAVAILABLE", "命令记录存储暂不可用，状态保留", 503)
         if getattr(app.state.analysis_worker, "failure_code", None):
             raise BusinessError("SERVICE_UNAVAILABLE", "需求分析存储暂不可用，任务状态保留", 503)
-        return {"status": "ok", "schema_version": "0006", "model_enabled": models.available(settings)}
+        return {"status": "ok", "schema_version": "0007", "model_enabled": models.available(settings)}
 
     @app.get(f"{PREFIX}/settings", response_model=SettingsOutput)
     def get_settings():
@@ -369,6 +369,7 @@ def create_app(settings: Settings | None = None, model_provider=None) -> FastAPI
     execution.install(app, sessions, settings)
     patches.install(app, sessions, settings)
     commands.install(app, sessions, settings)
+    recovery.install(app, sessions, settings)
     planning.install(app, sessions, settings)
     requirements.install(app, sessions)
     models.install(app, sessions, settings, model_provider or models.Provider())
