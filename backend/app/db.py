@@ -96,3 +96,15 @@ def connect(data_dir: Path):
         connection.exec_driver_sql("BEGIN")
 
     return engine, sessionmaker(engine, expire_on_commit=False)
+
+
+class PlanningAsset(Base):
+    __tablename__ = "planning_assets"
+    __table_args__ = (UniqueConstraint("project_id", "kind", "revision"),)
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    project_id: Mapped[str] = mapped_column(ForeignKey("projects.id"), index=True)
+    kind: Mapped[str] = mapped_column(String, index=True)
+    revision: Mapped[int] = mapped_column(Integer)
+    baseline_id: Mapped[str | None] = mapped_column(ForeignKey("requirement_records.id"), nullable=True)
+    payload: Mapped[dict] = mapped_column(JSON)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)

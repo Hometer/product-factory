@@ -73,3 +73,9 @@ footer { color: var(--muted); font-size: 11px; margin-top: 28px; }.sr-only { pos
 .choice { display:inline-flex; align-items:center; gap:8px; margin:8px 18px 8px 0; font-size:12px; }.choice input { display:inline-block; width:18px; min-height:18px; height:18px; margin:0; flex-shrink:0; }
 summary { cursor:pointer; min-height:44px; padding:8px 0; } details form { max-width:700px; padding:16px 0; } hr { border:0; border-top:1px solid var(--line); margin:24px 0; }
 @media(max-width:850px) { .requirement-grid { grid-template-columns:1fr; }.requirement-item { padding:14px; } }
+.planning-entry { display:inline-block; margin-bottom:20px; padding:10px 14px; border:1px solid var(--line); border-radius:8px; background:white; }
+.planning-input-grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:16px; }
+.requirement-panel > select { margin:8px 0 18px; width:100%; }.model-panel select { margin-bottom:16px; }
+@media(max-width:500px) { .planning-input-grid { grid-template-columns:1fr; } }
+
+.requirement-panel .section-head, .model-panel .section-head { flex-wrap:wrap; }

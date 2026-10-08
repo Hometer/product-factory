@@ -138,7 +138,7 @@ export default function RequirementEditor({ projectId }: { projectId: string }) 
 
   return <div className="shell">
     <header className="topbar"><Link className="brand" href="/" onClick={e => { if (dirty && !window.confirm("需求尚未保存，确定离开吗？")) e.preventDefault(); }}><span className="brandmark">工</span>产品工厂</Link><span className="local">本机工作台</span></header>
-    <main>
+    <main><Link className="planning-entry" href={"/projects/" + projectId + "/planning"} onClick={e => { if ((dirty || saving) && !window.confirm("需求尚未保存，确定离开吗？")) e.preventDefault(); }}>技术方案与阶段计划 →</Link>
       <div className="intro"><div><p className="eyebrow">REQUIREMENTS / 需求准备</p><h1>{name || "项目需求"}</h1><p className="subtitle">整理需求，核对缺口，由你确认本轮基线。</p></div><div className="scope"><strong>{saving ? "保存中…" : dirty ? "当前输入尚未保存" : workspace ? workspace.draft.revision === 0 ? "初始草稿 · 尚未保存" : `已保存 · 修订 ${workspace.draft.revision}` : "正在读取…"}</strong><span>阶段待验 · 基线冻结不代表开发完成</span></div></div>
       {error && <div role="alert" className="message error">{error}<button onClick={() => void action(async () => { await updateWorkspace(false); setNotice("服务器版本已读取，当前输入已保留。请核对后点击保存当前输入。"); })}>重新核对服务器版本</button></div>}
       {notice && <div role="status" className="message success">{notice}</div>}
