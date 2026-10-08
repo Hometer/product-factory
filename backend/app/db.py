@@ -108,3 +108,16 @@ class PlanningAsset(Base):
     baseline_id: Mapped[str | None] = mapped_column(ForeignKey("requirement_records.id"), nullable=True)
     payload: Mapped[dict] = mapped_column(JSON)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+
+
+class ExecutionAsset(Base):
+    __tablename__ = "execution_assets"
+    __table_args__ = (UniqueConstraint("project_id", "task_id", "kind", "revision"),)
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    project_id: Mapped[str] = mapped_column(ForeignKey("projects.id"), index=True)
+    task_id: Mapped[str] = mapped_column(String)
+    kind: Mapped[str] = mapped_column(String)
+    revision: Mapped[int] = mapped_column(Integer)
+    planning_id: Mapped[str] = mapped_column(ForeignKey("planning_assets.id"))
+    payload: Mapped[dict] = mapped_column(JSON)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)

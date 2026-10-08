@@ -124,6 +124,7 @@ export default function PlanningEditor({ projectId }: { projectId: string }) {
 
   return <div className="shell"><header className="topbar"><Link className="brand" href="/" onClick={leave}><span className="brandmark">工</span>产品工厂</Link><Link href={"/projects/" + projectId} onClick={leave}>← 需求与基线</Link></header><main>
     <div className="intro"><div><p className="eyebrow">ADAPTATION / PLAN</p><h1>{name || "项目"} · 技术与计划</h1><p className="subtitle">先核对怎么做，再确定分几步、每一步如何验收。</p></div><div className="scope"><strong>{saving ? "保存中…" : dirty ? "当前规划尚未保存" : workspace ? workspace.technical || workspace.plan ? "已保存 · 方案 " + (workspace.technical?.revision ?? "—") + " / 计划 " + (workspace.plan?.revision ?? "—") : "尚未生成方案与计划" : "正在读取…"}</strong><span>当前仅准备与交接 · 不执行开发任务</span></div></div>
+    <Link className="planning-entry" href={"/projects/" + projectId + "/execution"} onClick={leave}>执行计划与开工检查 →</Link>
     {error && <div role="alert" className="message error">{error}<button onClick={() => void action(async () => { const state = await refresh(false); if (!workspace) install(state,true); else { setConflict(true); setNotice("服务器记录已读取，当前输入保留。核对后明确保存。"); } })}>重新核对服务器记录</button></div>}
     {dirty && !(dirty === "technical" ? completeTechnical : completePlan) && <p role="status" className="hint">请补齐新增条目或方案正文；完整后自动保存，离开前需确认保存状态。</p>}
     {notice && <p role="status" className="message success">{notice}</p>}

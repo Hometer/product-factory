@@ -8,8 +8,8 @@ const origins = ["http://127.0.0.1:3000", "http://localhost:3000"];
 async function relay(request: NextRequest, context: { params: Promise<{ path: string[] }> }) {
   const route = (await context.params).path.join("/");
   const project = "projects/[0-9a-f-]{36}";
-  const readAllowed = new RegExp(`^(health|settings|model/status|projects|${project}|${project}/planning|${project}/planning/assets/[0-9a-f-]{36}|${project}/requirements|${project}/requirements/revisions/[0-9]+|${project}/requirements/baselines/[0-9a-f-]{36}|${project}/analysis/runs(/[0-9a-f-]{36})?)$`).test(route);
-  const writeAllowed = new RegExp(`^(model/config|projects/(create-preview|import-preview|confirm)|${project}/planning/(environment|technical/(generate|revisions|confirm)|plans/(generate|revisions|confirm))|${project}/requirements/(revisions|check|answers|freeze)|${project}/analysis/(preview|authorize|runs)|${project}/analysis/runs/[0-9a-f-]{36}/adopt|${project}/analysis/authorizations/[0-9a-f-]{36}/revoke)$`).test(route);
+  const readAllowed = new RegExp(`^(health|settings|model/status|projects|${project}|${project}/execution|${project}/execution/assets/[0-9a-f-]{36}|${project}/planning|${project}/planning/assets/[0-9a-f-]{36}|${project}/requirements|${project}/requirements/revisions/[0-9]+|${project}/requirements/baselines/[0-9a-f-]{36}|${project}/analysis/runs(/[0-9a-f-]{36})?)$`).test(route);
+  const writeAllowed = new RegExp(`^(model/config|projects/(create-preview|import-preview|confirm)|${project}/execution/(plans/(generate|revisions)|check|authorize|revoke)|${project}/planning/(environment|technical/(generate|revisions|confirm)|plans/(generate|revisions|confirm))|${project}/requirements/(revisions|check|answers|freeze)|${project}/analysis/(preview|authorize|runs)|${project}/analysis/runs/[0-9a-f-]{36}/adopt|${project}/analysis/authorizations/[0-9a-f-]{36}/revoke)$`).test(route);
   const error = (code: string, message: string, status: number) =>
     NextResponse.json({ error: { code, message } }, { status });
   if (!((request.method === "GET" && readAllowed) || (request.method === "POST" && writeAllowed))) {
@@ -23,7 +23,7 @@ async function relay(request: NextRequest, context: { params: Promise<{ path: st
     const dataDir = process.env.FACTORY_DATA_DIR ?? path.resolve(process.cwd(), "../data");
     const token = (await readFile(path.join(dataDir, "backend_token"), "utf8")).trim();
     const body = request.method === "POST" ? await request.text() : undefined;
-    const bodyLimit = route.includes("/planning/") ? 1_048_576 : 131_072;
+    const bodyLimit = (route.includes("/planning/") || route.includes("/execution/")) ? 1_048_576 : 131_072;
     if (body && Buffer.byteLength(body) > bodyLimit) return error("INPUT_INVALID", "请求内容过大", 413);
     const headers: Record<string, string> = { Authorization: `Bearer ${token}` };
     if (origin) headers.Origin = origin;

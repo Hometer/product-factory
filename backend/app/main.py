@@ -17,7 +17,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from starlette.exceptions import HTTPException
 
-from . import models, planning, requirements
+from . import execution, models, planning, requirements
 from .core import ROOT, Settings, load_settings
 from .db import AuditEvent, Preview, Project, RequestRecord, connect
 from .scanner import BusinessError, canonical, digest, scan
@@ -169,7 +169,7 @@ def create_app(settings: Settings | None = None, model_provider=None) -> FastAPI
     def health():
         if getattr(app.state.analysis_worker, "failure_code", None):
             raise BusinessError("SERVICE_UNAVAILABLE", "需求分析存储暂不可用，任务状态保留", 503)
-        return {"status": "ok", "schema_version": "0003", "model_enabled": models.available(settings)}
+        return {"status": "ok", "schema_version": "0004", "model_enabled": models.available(settings)}
 
     @app.get(f"{PREFIX}/settings", response_model=SettingsOutput)
     def get_settings():
@@ -336,6 +336,7 @@ def create_app(settings: Settings | None = None, model_provider=None) -> FastAPI
                 "OPERATION_FAILED", "操作未完成，原项目保留，请检查权限后重新预览", 503
             ) from None
 
+    execution.install(app, sessions, settings)
     planning.install(app, sessions, settings)
     requirements.install(app, sessions)
     models.install(app, sessions, settings, model_provider or models.Provider())
