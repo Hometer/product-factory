@@ -30,6 +30,7 @@ export default function Workbench() {
   const [updated, setUpdated] = useState("");
   const [roots, setRoots] = useState<string[]>([]);
   const [selected, setSelected] = useState<Project | null>(null);
+  const [modelEnabled, setModelEnabled] = useState(false);
   const sequence = useRef(0);
 
   const load = useCallback(async (search = "") => {
@@ -55,7 +56,8 @@ export default function Workbench() {
       if (ticket !== sequence.current) return;
       setStale(true); setError((e as Error).message);
     }).finally(() => { if (ticket === sequence.current) setLoading(false); });
-    void api<{ allowed_roots: string[]; default_path: string }>("settings").then(data => {
+    void api<{ allowed_roots: string[]; default_path: string; model_enabled: boolean }>("settings").then(data => {
+      setModelEnabled(data.model_enabled);
       setRoots(data.allowed_roots); setForm(current => ({ ...current, path: current.path || data.allowed_roots[0] || "" }));
     }).catch(e => setError((e as Error).message));
     return () => { sequence.current += 1; };
@@ -87,7 +89,7 @@ export default function Workbench() {
   return <div className="shell">
     <header className="topbar"><Link className="brand" href="/"><span className="brandmark">工</span>产品工厂</Link><span className="local"><span />本机工作台</span></header>
     <main>
-      <div className="intro"><div><p className="eyebrow">PRODUCT FACTORY</p><h1>你的产品工作台</h1><p className="subtitle">把项目与资料放在一起，清楚地接着做下一步。</p></div><div className="scope"><strong>项目登记与只读接入</strong><span>当前范围 · 模型未启用</span></div></div>
+      <div className="intro"><div><p className="eyebrow">PRODUCT FACTORY</p><h1>你的产品工作台</h1><p className="subtitle">把项目与资料放在一起，清楚地接着做下一步。</p></div><div className="scope"><strong>项目登记与需求整理</strong><span>{modelEnabled ? "模型已配置 · 分析需资料授权" : "当前范围 · 模型未启用"}</span></div></div>
       {error && <div role="alert" className="message error">{error}<button onClick={reload}>重新读取</button></div>}
       {notice && <div role="status" className="message success">{notice}</div>}
       <div className="workspace">
@@ -97,7 +99,7 @@ export default function Workbench() {
           <p className="list-meta">{loading ? "正在读取项目…" : stale ? `显示上次成功读取的数据 · ${updated || "尚无数据"}` : `最近读取 ${updated || "—"}`}</p>
           {!loading && !stale && projects.length === 0 && <div className="empty"><span className="empty-symbol">＋</span><h3>{query ? "没有匹配的项目" : "从你的第一个产品开始"}</h3><p>{query ? "换一个名称，再搜索一次。" : "接入已有目录，或创建一个新项目。资料会先预览，再由你确认。"}</p></div>}
           <div className="project-list">{projects.map(project => <button className={`project-card ${selected?.id === project.id ? "selected" : ""}`} key={project.id} onClick={() => setSelected(project)}><div className="card-top"><span className="project-icon">{project.name.slice(0, 1)}</span><span className="badge">已登记</span></div><h3>{project.name}</h3><p>{project.core_task}</p><span className="path">{project.path}</span><div className="card-footer"><span>{new Date(project.created_at).toLocaleDateString("zh-CN")}</span><span>查看资料 →</span></div></button>)}</div>
-          {selected && <div className="detail"><h3>{selected.name}</h3><dl><dt>目标用户</dt><dd>{selected.target_user}</dd><dt>核心任务</dt><dd>{selected.core_task}</dd><dt>说明</dt><dd>{selected.description || "未填写"}</dd><dt>目录</dt><dd className="path">{selected.path}</dd></dl><p>已登记表示项目信息已保存；需求、执行和验收将在后续阶段提供。</p></div>}
+          {selected && <div className="detail"><h3>{selected.name}</h3><dl><dt>目标用户</dt><dd>{selected.target_user}</dd><dt>核心任务</dt><dd>{selected.core_task}</dd><dt>说明</dt><dd>{selected.description || "未填写"}</dd><dt>目录</dt><dd className="path">{selected.path}</dd></dl><p>已登记表示项目信息已保存；执行与验收将在后续阶段提供。</p><Link className="primary" href={`/projects/${selected.id}`}>整理需求与确认基线 →</Link></div>}
         </section>
         <section className="registration panel" aria-labelledby="register-title">
           <div className="section-head"><div><p className="eyebrow">02 / 登记</p><h2 id="register-title">添加一个产品</h2></div></div>
@@ -114,7 +116,7 @@ export default function Workbench() {
           </fieldset></form>
           {preview && <section className="preview" aria-labelledby="preview-title"><h3 id="preview-title">{mode === "import" ? "资料预览" : "将创建的文件"}</h3><p>已识别 {preview.manifest.files.length} 项。请核对后确认。</p>{preview.manifest.warnings.map(text => <p className="warning" key={text}>{text}</p>)}<div className="file-list">{preview.manifest.files.map(file => <div className="file-row" key={file.path}><span className="path">{file.path}</span><span>{statuses[file.status] ?? file.status}</span></div>)}</div><button className="primary" type="button" onClick={() => void confirm()} disabled={busy || stale}>{busy ? "正在保存…" : mode === "import" ? "确认接入" : "确认创建"}</button></section>}
         </section>
-      </div><footer>所有登记信息保存在本机。当前未向模型发送资料。</footer>
+      </div><footer>项目与需求保存在本机，模型分析需要明确的资料授权。</footer>
     </main>
   </div>;
 }

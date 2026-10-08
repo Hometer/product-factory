@@ -14,6 +14,7 @@ class Settings:
     token: str
     origins: tuple[str, ...] = ("http://127.0.0.1:3000", "http://localhost:3000")
     hosts: tuple[str, ...] = ("127.0.0.1:8765", "localhost:8765")
+    model_env: Path | None = None
 
 
 def load_settings() -> Settings:

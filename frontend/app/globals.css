@@ -59,3 +59,17 @@ textarea { resize: vertical; }input::placeholder, textarea::placeholder { color:
 footer { color: var(--muted); font-size: 11px; margin-top: 28px; }.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip: rect(0,0,0,0); }
 @media (max-width: 850px) { .workspace { grid-template-columns: 1fr; }.intro { align-items: flex-start; }.scope { max-width: 180px; }.panel { padding: 22px; } }
 @media (max-width: 500px) { main { padding: 28px 16px; }.topbar { padding: 0 16px; height: 68px; }.intro { flex-direction: column; gap: 20px; margin-bottom: 24px; }.project-list { grid-template-columns: 1fr; }.scope { max-width: none; }.panel { padding: 20px; }.empty { padding: 32px 12px; }.file-row { flex-wrap: wrap; } }
+.requirement-grid { display:grid; grid-template-columns:minmax(0,1.5fr) minmax(0,1fr); gap:24px; align-items:start; }
+.requirement-grid > *, .requirement-grid aside { min-width:0; }
+.requirement-panel { margin-bottom:24px; }.requirement-panel h2, .model-panel h2 { margin-top:4px; }
+.requirement-field { margin-top:22px; }.field-heading { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:8px; flex-wrap:wrap; }
+.field-heading label { margin:0; }.field-heading select, select { max-width:100%; border:1px solid var(--line); border-radius:7px; padding:8px; min-height:44px; background:white; }
+.source-note { font-size:11px; color:var(--muted); overflow-wrap:anywhere; }.requirement-field textarea { margin-bottom:6px; }
+.requirement-item { border:1px solid var(--line); border-radius:12px; padding:20px; margin:20px 0; }.requirement-item h3 { margin-top:0; }
+.gap { border-top:1px solid var(--line); padding:14px 0; overflow-wrap:anywhere; }.gap p { margin:6px 0; }.gap small { color:var(--muted); }
+.button-row { display:flex; gap:8px; flex-wrap:wrap; }.button-row button, .baseline-link { background:white; border:1px solid var(--line); border-radius:8px; padding:8px 12px; min-height:44px; }
+.question-round { margin-top:22px; }.freeze-review { padding:18px; margin-top:18px; border:1px solid var(--line); background:#f9faf6; border-radius:10px; overflow-wrap:anywhere; }.freeze-review p { white-space:pre-wrap; }
+.baseline-link { display:block; width:100%; margin:10px 0; text-align:left; }.model-panel { grid-column:1/-1; }
+.choice { display:inline-flex; align-items:center; gap:8px; margin:8px 18px 8px 0; font-size:12px; }.choice input { display:inline-block; width:18px; min-height:18px; height:18px; margin:0; flex-shrink:0; }
+summary { cursor:pointer; min-height:44px; padding:8px 0; } details form { max-width:700px; padding:16px 0; } hr { border:0; border-top:1px solid var(--line); margin:24px 0; }
+@media(max-width:850px) { .requirement-grid { grid-template-columns:1fr; }.requirement-item { padding:14px; } }

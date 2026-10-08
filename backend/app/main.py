@@ -17,6 +17,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from starlette.exceptions import HTTPException
 
+from . import models, requirements
 from .core import ROOT, Settings, load_settings
 from .db import AuditEvent, Preview, Project, RequestRecord, connect
 from .scanner import BusinessError, canonical, digest, scan
@@ -94,7 +95,7 @@ def rollback_created(target: Path, written: dict[str, bytes]) -> None:
         pass
 
 
-def create_app(settings: Settings | None = None) -> FastAPI:
+def create_app(settings: Settings | None = None, model_provider=None) -> FastAPI:
     settings = settings or load_settings()
     engine, sessions = connect(settings.data_dir)
 
@@ -105,8 +106,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         with engine.begin() as connection:
             migration.attributes["connection"] = connection
             command.upgrade(migration, "head")
-        yield
-        engine.dispose()
+        stop, worker = models.start_worker(sessions, settings, model_provider or models.Provider())
+        app.state.analysis_worker = worker
+        try:
+            yield
+        finally:
+            stop.set()
+            worker.join(timeout=65)
+            engine.dispose()
 
     app = FastAPI(title="产品工厂", lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
     app.state.sessions = sessions
@@ -160,14 +167,16 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @app.get(f"{PREFIX}/health", response_model=HealthOutput)
     def health():
-        return {"status": "ok", "schema_version": "0001", "model_enabled": False}
+        if getattr(app.state.analysis_worker, "failure_code", None):
+            raise BusinessError("SERVICE_UNAVAILABLE", "需求分析存储暂不可用，任务状态保留", 503)
+        return {"status": "ok", "schema_version": "0002", "model_enabled": models.available(settings)}
 
     @app.get(f"{PREFIX}/settings", response_model=SettingsOutput)
     def get_settings():
         return {
             "allowed_roots": [str(p) for p in settings.allowed_roots],
             "default_path": str(settings.allowed_roots[0] / "新产品"),
-            "model_enabled": False,
+            "model_enabled": models.available(settings),
         }
 
     @app.get(f"{PREFIX}/projects", response_model=ProjectList)
@@ -327,4 +336,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 "OPERATION_FAILED", "操作未完成，原项目保留，请检查权限后重新预览", 503
             ) from None
 
+    requirements.install(app, sessions)
+    models.install(app, sessions, settings, model_provider or models.Provider())
     return app

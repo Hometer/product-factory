@@ -1,7 +1,7 @@
 from datetime import UTC, datetime
 from pathlib import Path
 
-from sqlalchemy import JSON, DateTime, Integer, String, create_engine, event
+from sqlalchemy import JSON, DateTime, ForeignKey, Integer, String, UniqueConstraint, create_engine, event
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, sessionmaker
 
 
@@ -47,6 +47,34 @@ class AuditEvent(Base):
     action: Mapped[str] = mapped_column(String)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
     details: Mapped[dict] = mapped_column(JSON)
+
+
+class RequirementRevision(Base):
+    __tablename__ = "requirement_revisions"
+    __table_args__ = (UniqueConstraint("project_id", "revision"),)
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    project_id: Mapped[str] = mapped_column(ForeignKey("projects.id"))
+    revision: Mapped[int] = mapped_column(Integer)
+    payload: Mapped[dict] = mapped_column(JSON)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+
+
+class RequirementRecord(Base):
+    __tablename__ = "requirement_records"
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    project_id: Mapped[str] = mapped_column(ForeignKey("projects.id"), index=True)
+    kind: Mapped[str] = mapped_column(String, index=True)
+    payload: Mapped[dict] = mapped_column(JSON)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+
+
+class ModelBudget(Base):
+    __tablename__ = "model_budgets"
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    spent_micro: Mapped[int] = mapped_column(Integer, default=0)
+    reserved_micro: Mapped[int] = mapped_column(Integer, default=0)
+    requests_used: Mapped[int] = mapped_column(Integer, default=0)
+    requests_reserved: Mapped[int] = mapped_column(Integer, default=0)
 
 
 def connect(data_dir: Path):
