@@ -82,6 +82,7 @@ def connect(data_dir: Path):
     engine = create_engine(
         f"sqlite:///{data_dir / 'factory.sqlite3'}",
         connect_args={"check_same_thread": False, "timeout": 15},
+        hide_parameters=True,
     )
 
     @event.listens_for(engine, "connect")
@@ -120,4 +121,23 @@ class ExecutionAsset(Base):
     revision: Mapped[int] = mapped_column(Integer)
     planning_id: Mapped[str] = mapped_column(ForeignKey("planning_assets.id"))
     payload: Mapped[dict] = mapped_column(JSON)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+
+
+class PatchAsset(Base):
+    __tablename__ = "patch_assets"
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    project_id: Mapped[str] = mapped_column(ForeignKey("projects.id"), index=True)
+    execution_id: Mapped[str] = mapped_column(ForeignKey("execution_assets.id"))
+    payload: Mapped[dict] = mapped_column(JSON)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+
+
+class PatchRun(Base):
+    __tablename__ = "patch_runs"
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    project_id: Mapped[str] = mapped_column(ForeignKey("projects.id"), index=True)
+    patch_id: Mapped[str] = mapped_column(ForeignKey("patch_assets.id"))
+    state: Mapped[str] = mapped_column(String)
+    details: Mapped[dict] = mapped_column(JSON)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)

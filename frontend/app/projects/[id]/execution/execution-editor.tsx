@@ -92,7 +92,7 @@ export default function ExecutionEditor({projectId}: {projectId: string}) {
     if(state.entries.find(e=>e.task_id===taskId)?.plan.id!==saved.id)throw new APIError("保存后已有新的服务器修订，输入保留，请核对。","REVISION_CONFLICT");
     select(state,taskId);setNotice("执行草稿已保存；尚未执行，检查需重新运行。");
   }
-  return <div className="shell"><header className="topbar"><Link className="brand" href="/" onClick={leave}><span className="brandmark">工</span>产品工厂</Link><Link href={"/projects/"+projectId+"/planning"} onClick={leave}>← 技术与阶段计划</Link></header><main>
+  return <div className="shell"><header className="topbar"><Link className="brand" href="/" onClick={leave}><span className="brandmark">工</span>产品工厂</Link><Link href={"/projects/"+projectId+"/planning"} onClick={leave}>← 技术与阶段计划</Link></header><main><Link className="planning-entry" href={"/projects/"+projectId+"/patches"} onClick={leave}>补丁预览与安全写入 →</Link>
     <div className="intro"><div><p className="eyebrow">EXECUTION / PREFLIGHT</p><h1>{name || "项目"} · 开工检查</h1><p className="subtitle">把要改什么、怎样验证与恢复写清楚，再核对开工条件。</p></div><div className="scope"><strong>{busy ? "正在处理…" : dirty ? "输入尚未保存" : row ? "已保存 · "+taskId+" 执行修订 "+row.revision : "尚未生成执行草稿"}</strong><span>手动执行待核对 · 自动执行未开放</span></div></div>
     <p className="hint">范围授权只记录明确的本地零费操作；不启动任务、不修改项目文件、不调用模型、不代表阶段通过。</p>
     {error && <div className="message error" role="alert">{error}<button disabled={busy} onClick={()=>void action(async()=>{await load(!workspace);setNotice("服务器记录已读取，当前输入保留；核对后明确保存。");})}>重新核对服务器记录</button></div>}

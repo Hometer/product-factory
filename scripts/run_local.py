@@ -15,6 +15,8 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def available(port: int) -> bool:
     with socket.socket() as sock:
+        # Recently closed connections can remain in TIME_WAIT without any running service.
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         try:
             sock.bind(("127.0.0.1", port))
             return True

@@ -17,7 +17,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from starlette.exceptions import HTTPException
 
-from . import execution, models, planning, requirements
+from . import execution, models, patches, planning, requirements
 from .core import ROOT, Settings, load_settings
 from .db import AuditEvent, Preview, Project, RequestRecord, connect
 from .scanner import BusinessError, canonical, digest, scan
@@ -106,6 +106,7 @@ def create_app(settings: Settings | None = None, model_provider=None) -> FastAPI
         with engine.begin() as connection:
             migration.attributes["connection"] = connection
             command.upgrade(migration, "head")
+        patches.recover_pending(sessions, settings)
         stop, worker = models.start_worker(sessions, settings, model_provider or models.Provider())
         app.state.analysis_worker = worker
         try:
@@ -146,6 +147,30 @@ def create_app(settings: Settings | None = None, model_provider=None) -> FastAPI
     async def business_error(request, exc):
         return JSONResponse({"error": {"code": exc.code, "message": exc.message}}, status_code=exc.status)
 
+    @app.exception_handler(OSError)
+    async def file_error(request, exc):
+        return JSONResponse(
+            {
+                "error": {
+                    "code": "FILE_UNAVAILABLE",
+                    "message": "本机文件暂不可安全操作，输入与历史保留，请核对文件权限和目录",
+                }
+            },
+            status_code=409,
+        )
+
+    @app.exception_handler(SQLAlchemyError)
+    async def storage_error(request, exc):
+        return JSONResponse(
+            {
+                "error": {
+                    "code": "STORAGE_UNAVAILABLE",
+                    "message": "本机记录暂不可用，请查询恢复状态后处理；不会自动重复写入",
+                }
+            },
+            status_code=503,
+        )
+
     @app.exception_handler(RequestValidationError)
     async def validation_error(request, exc):
         return JSONResponse(
@@ -169,7 +194,7 @@ def create_app(settings: Settings | None = None, model_provider=None) -> FastAPI
     def health():
         if getattr(app.state.analysis_worker, "failure_code", None):
             raise BusinessError("SERVICE_UNAVAILABLE", "需求分析存储暂不可用，任务状态保留", 503)
-        return {"status": "ok", "schema_version": "0004", "model_enabled": models.available(settings)}
+        return {"status": "ok", "schema_version": "0005", "model_enabled": models.available(settings)}
 
     @app.get(f"{PREFIX}/settings", response_model=SettingsOutput)
     def get_settings():
@@ -337,6 +362,7 @@ def create_app(settings: Settings | None = None, model_provider=None) -> FastAPI
             ) from None
 
     execution.install(app, sessions, settings)
+    patches.install(app, sessions, settings)
     planning.install(app, sessions, settings)
     requirements.install(app, sessions)
     models.install(app, sessions, settings, model_provider or models.Provider())

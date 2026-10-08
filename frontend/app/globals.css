@@ -79,3 +79,4 @@ summary { cursor:pointer; min-height:44px; padding:8px 0; } details form { max-w
 @media(max-width:500px) { .planning-input-grid { grid-template-columns:1fr; } }
 
 .requirement-panel .section-head, .model-panel .section-head { flex-wrap:wrap; }
+.patch-diff { white-space:pre-wrap; overflow-wrap:anywhere; word-break:break-word; font-size:12px; padding:16px; background:#f1f5ee; border:1px solid var(--line); border-radius:8px; max-height:460px; overflow:auto; }

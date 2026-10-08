@@ -33,7 +33,7 @@ from .scanner import EXCLUDED, SECRET, BusinessError, canonical, digest
 LIMITATIONS = [
     "只核对显式文件与已绑定环境；未选文件、完整 Git 差异和外部进程未覆盖。",
     "检查是当时快照，历史记录不构成当前开工许可；后续执行前必须重新核对并取得写锁。",
-    "执行配方、任务依赖结果与占用登记尚未交付，当前为手动执行待核对，不执行、不计费。",
+    "自动任务配方、任务依赖结果与通用占用登记尚未交付；有限文本写入须在补丁页单独审阅确认。",
 ]
 OPERATIONS = {
     "read_only": "本地只读",
@@ -214,7 +214,7 @@ def prepare(session, settings, pid, body, generated):
             ],
             "estimate_micro": 0,
             "recovery": "当前准备不修改原工程；实际写入前需补丁回退，数据迁移另需备份恢复",
-            "risks": "执行器与占用核对未交付；零费用仅指本地准备，不代表未来外部操作报价",
+            "risks": "自动任务执行器与通用占用核对未交付；有限补丁另行审阅，零费准备不代表外部报价",
         }
         if generated
         else body.text.model_dump()
@@ -423,7 +423,7 @@ def matrix(session, settings, pid, row):
         "occupancy",
         "项目与工作区占用",
         "pending",
-        "占用登记与写锁未交付，外部进程未核对",
+        "通用任务占用登记未交付，外部进程未核对；补丁写入独占锁在补丁页单独检查",
         "当前平台能力",
         "后续建立持久化占用登记与同项目/工作区单写控制",
     )
@@ -433,7 +433,7 @@ def matrix(session, settings, pid, row):
         "blocked",
         "执行器未交付：手动执行待核对，不能自动开工",
         "固定能力声明，不以模型或客户端字段判断",
-        "后续交付受控执行配方、写锁与恢复，再重新检查",
+        "自动任务配方交付后重新检查；当前有限文本补丁请到补丁页核对",
     )
     return CheckPayload.model_validate(
         {
