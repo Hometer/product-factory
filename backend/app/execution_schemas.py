@@ -7,7 +7,9 @@ from pydantic import Field, field_validator
 from .planning_schemas import Check
 from .schemas import StrictModel
 
-Operation = Literal["read_only", "code_write", "model_call", "dependency_install", "deploy", "irreversible"]
+Operation = Literal[
+    "read_only", "code_write", "local_command", "model_call", "dependency_install", "deploy", "irreversible"
+]
 
 
 class Step(StrictModel):

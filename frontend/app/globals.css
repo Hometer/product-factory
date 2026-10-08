@@ -80,3 +80,8 @@ summary { cursor:pointer; min-height:44px; padding:8px 0; } details form { max-w
 
 .requirement-panel .section-head, .model-panel .section-head { flex-wrap:wrap; }
 .patch-diff { white-space:pre-wrap; overflow-wrap:anywhere; word-break:break-word; font-size:12px; padding:16px; background:#f1f5ee; border:1px solid var(--line); border-radius:8px; max-height:460px; overflow:auto; }
+
+.command-choice { display:flex; min-height:44px; overflow-wrap:anywhere; }
+
+.command-workspace .baseline-link { white-space:normal; overflow-wrap:anywhere; line-height:1.6; }
+.command-workspace li { overflow-wrap:anywhere; word-break:break-word; }

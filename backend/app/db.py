@@ -141,3 +141,22 @@ class PatchRun(Base):
     state: Mapped[str] = mapped_column(String)
     details: Mapped[dict] = mapped_column(JSON)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+
+
+class CommandAsset(Base):
+    __tablename__ = "command_assets"
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    project_id: Mapped[str] = mapped_column(ForeignKey("projects.id"), index=True)
+    execution_id: Mapped[str] = mapped_column(ForeignKey("execution_assets.id"))
+    payload: Mapped[dict] = mapped_column(JSON)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+
+
+class CommandRun(Base):
+    __tablename__ = "command_runs"
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    project_id: Mapped[str] = mapped_column(ForeignKey("projects.id"), index=True)
+    asset_id: Mapped[str] = mapped_column(ForeignKey("command_assets.id"))
+    state: Mapped[str] = mapped_column(String)
+    details: Mapped[dict] = mapped_column(JSON)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)

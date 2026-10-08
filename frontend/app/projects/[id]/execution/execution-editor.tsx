@@ -10,7 +10,7 @@ type Asset = { id: string; task_id: string; kind: string; revision: number; cont
 type Entry = { task_id: string; plan: Asset; check: Asset | null; authorization: Asset | null };
 type Workspace = { planning_id: string | null; planning_revision: number | null; tasks: { id: string; title: string; stage_id: string }[]; source_issues: string[]; entries: Entry[]; history: Pick<Asset,"id"|"task_id"|"kind"|"revision"|"created_at">[] };
 const names: Record<string,string> = { plan:"执行计划",check:"开工检查",grant:"本地范围授权",revoke:"撤销记录" };
-const operations: Record<string,string> = { read_only:"本地只读",code_write:"代码写入",model_call:"模型外发（未开放）",dependency_install:"依赖安装（未开放）",deploy:"发布（未开放）",irreversible:"不可逆动作（未开放）" };
+const operations: Record<string,string> = { read_only:"本地只读",code_write:"代码写入",local_command:"本地受控配方",model_call:"模型外发（未开放）",dependency_install:"依赖安装（未开放）",deploy:"发布（未开放）",irreversible:"不可逆动作（未开放）" };
 const yuan = (micro: number) => (micro/1_000_000).toFixed(6).replace(/0+$/,"").replace(/\.$/,"");
 class APIError extends Error { constructor(message: string, public code: string) { super(message); } }
 async function api<T>(route: string, body?: unknown, key?: string): Promise<T> {
@@ -81,7 +81,7 @@ export default function ExecutionEditor({projectId}: {projectId: string}) {
   const ready=!!workspace && !busy && !dirty;
   const costValid=/^\d{1,3}(\.\d{1,6})?$/.test(money) && Number(money)<=100;
   const complete=!!text && costValid && [text.modifications,text.recovery,text.risks].every(s=>s.trim().length>=3) && text.steps.length>0 && text.steps.every(s=>[s.instruction,s.output,s.validation].every(v=>v.trim().length>=3));
-  const localScope=!!text && text.estimate_micro===0 && text.steps.every(s=>["read_only","code_write"].includes(s.operation)) && (!text.steps.some(s=>s.operation==="code_write") || text.files.length>0);
+  const localScope=!!text && text.estimate_micro===0 && text.steps.every(s=>["read_only","code_write","local_command"].includes(s.operation)) && (!text.steps.some(s=>["code_write","local_command"].includes(s.operation)) || text.files.length>0);
   async function save() {
     if(!workspace || !text || !complete || !workspace.planning_id)return;
     const body={planning_id:workspace.planning_id,task_id:taskId,expected_revision:row?.revision ?? 0,text:{...text,files:fileInput.split("\n").map(s=>s.trim()).filter(Boolean),estimate_micro:Math.round(Number(money)*1_000_000)}};
@@ -92,7 +92,7 @@ export default function ExecutionEditor({projectId}: {projectId: string}) {
     if(state.entries.find(e=>e.task_id===taskId)?.plan.id!==saved.id)throw new APIError("保存后已有新的服务器修订，输入保留，请核对。","REVISION_CONFLICT");
     select(state,taskId);setNotice("执行草稿已保存；尚未执行，检查需重新运行。");
   }
-  return <div className="shell"><header className="topbar"><Link className="brand" href="/" onClick={leave}><span className="brandmark">工</span>产品工厂</Link><Link href={"/projects/"+projectId+"/planning"} onClick={leave}>← 技术与阶段计划</Link></header><main><Link className="planning-entry" href={"/projects/"+projectId+"/patches"} onClick={leave}>补丁预览与安全写入 →</Link>
+  return <div className="shell"><header className="topbar"><Link className="brand" href="/" onClick={leave}><span className="brandmark">工</span>产品工厂</Link><Link href={"/projects/"+projectId+"/planning"} onClick={leave}>← 技术与阶段计划</Link></header><main><Link className="planning-entry" href={"/projects/"+projectId+"/commands"} onClick={leave}>命令执行与运行记录 →</Link><Link className="planning-entry" href={"/projects/"+projectId+"/patches"} onClick={leave}>补丁预览与安全写入 →</Link>
     <div className="intro"><div><p className="eyebrow">EXECUTION / PREFLIGHT</p><h1>{name || "项目"} · 开工检查</h1><p className="subtitle">把要改什么、怎样验证与恢复写清楚，再核对开工条件。</p></div><div className="scope"><strong>{busy ? "正在处理…" : dirty ? "输入尚未保存" : row ? "已保存 · "+taskId+" 执行修订 "+row.revision : "尚未生成执行草稿"}</strong><span>手动执行待核对 · 自动执行未开放</span></div></div>
     <p className="hint">范围授权只记录明确的本地零费操作；不启动任务、不修改项目文件、不调用模型、不代表阶段通过。</p>
     {error && <div className="message error" role="alert">{error}<button disabled={busy} onClick={()=>void action(async()=>{await load(!workspace);setNotice("服务器记录已读取，当前输入保留；核对后明确保存。");})}>重新核对服务器记录</button></div>}

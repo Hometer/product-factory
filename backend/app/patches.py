@@ -9,7 +9,7 @@ from fastapi import Header
 from sqlalchemy import select
 
 from . import execution
-from .db import PatchAsset, PatchRun, Project
+from .db import CommandAsset, CommandRun, PatchAsset, PatchRun, Project
 from .patch_files import Files, identity, root_check, text_check, workspace_lock
 from .patch_schemas import Apply, Asset, Payload, Preview, Recover, Run, Workspace
 from .requirements import audit, locked, mutate, project, timestamp
@@ -79,7 +79,7 @@ def sources(session, settings, pid, asset):
     text, inputs = row.payload["text"], row.payload["inputs"]
     if (
         text["estimate_micro"]
-        or any(s["operation"] not in {"read_only", "code_write"} for s in text["steps"])
+        or any(s["operation"] not in {"read_only", "code_write", "local_command"} for s in text["steps"])
         or not any(s["operation"] == "code_write" for s in text["steps"])
     ):
         raise BusinessError("RECIPE_UNSUPPORTED", "仅支持本地零费代码写入范围", 409)
@@ -121,6 +121,14 @@ def eligible(session, settings, pid, asset):
         if session.get(PatchAsset, r.patch_id).payload["root"] == str(root)
     ):
         raise BusinessError("RECOVERY_REQUIRED", "本项目有未结束运行，请先查询并核对恢复", 409)
+    for active in session.scalars(select(CommandRun)):
+        if (
+            active.state in {"queued", "starting", "running", "serving"}
+            or active.details["error_code"] == "PROCESS_STOP_UNCONFIRMED"
+        ) and session.get(CommandAsset, active.asset_id).payload["root_identity"] == asset.payload[
+            "root_identity"
+        ]:
+            raise BusinessError("WORKSPACE_BUSY", "本项目有命令或服务运行，请先停止再写入", 409)
     if any(r.patch_id == asset.id for r in runs(session, pid)):
         raise BusinessError("PATCH_ALREADY_ATTEMPTED", "此补丁已有运行记录，不重复写入；修改后另存预览", 409)
     with Files(root, [f["path"] for f in asset.payload["files"]]) as files:

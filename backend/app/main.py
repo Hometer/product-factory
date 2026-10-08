@@ -17,7 +17,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from starlette.exceptions import HTTPException
 
-from . import execution, models, patches, planning, requirements
+from . import commands, execution, models, patches, planning, requirements
 from .core import ROOT, Settings, load_settings
 from .db import AuditEvent, Preview, Project, RequestRecord, connect
 from .scanner import BusinessError, canonical, digest, scan
@@ -106,12 +106,15 @@ def create_app(settings: Settings | None = None, model_provider=None) -> FastAPI
         with engine.begin() as connection:
             migration.attributes["connection"] = connection
             command.upgrade(migration, "head")
+        commands.reconcile(sessions)
         patches.recover_pending(sessions, settings)
+        app.state.command_manager = commands.Manager(sessions, settings).start()
         stop, worker = models.start_worker(sessions, settings, model_provider or models.Provider())
         app.state.analysis_worker = worker
         try:
             yield
         finally:
+            app.state.command_manager.close()
             stop.set()
             worker.join(timeout=65)
             engine.dispose()
@@ -192,9 +195,11 @@ def create_app(settings: Settings | None = None, model_provider=None) -> FastAPI
 
     @app.get(f"{PREFIX}/health", response_model=HealthOutput)
     def health():
+        if app.state.command_manager.failure_code:
+            raise BusinessError("SERVICE_UNAVAILABLE", "命令记录存储暂不可用，状态保留", 503)
         if getattr(app.state.analysis_worker, "failure_code", None):
             raise BusinessError("SERVICE_UNAVAILABLE", "需求分析存储暂不可用，任务状态保留", 503)
-        return {"status": "ok", "schema_version": "0005", "model_enabled": models.available(settings)}
+        return {"status": "ok", "schema_version": "0006", "model_enabled": models.available(settings)}
 
     @app.get(f"{PREFIX}/settings", response_model=SettingsOutput)
     def get_settings():
@@ -363,6 +368,7 @@ def create_app(settings: Settings | None = None, model_provider=None) -> FastAPI
 
     execution.install(app, sessions, settings)
     patches.install(app, sessions, settings)
+    commands.install(app, sessions, settings)
     planning.install(app, sessions, settings)
     requirements.install(app, sessions)
     models.install(app, sessions, settings, model_provider or models.Provider())

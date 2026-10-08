@@ -38,6 +38,7 @@ LIMITATIONS = [
 OPERATIONS = {
     "read_only": "本地只读",
     "code_write": "代码写入",
+    "local_command": "本地受控配方",
     "model_call": "模型外发",
     "dependency_install": "依赖安装",
     "deploy": "发布",
@@ -330,7 +331,7 @@ def matrix(session, settings, pid, row):
     text = row.payload["text"]
     ops = {s["operation"] for s in text["steps"]}
     scope = authorization(session, pid, row)
-    unsupported = ops - {"read_only", "code_write"} or text["estimate_micro"] != 0
+    unsupported = ops - {"read_only", "code_write", "local_command"} or text["estimate_micro"] != 0
     if unsupported:
         add(
             "authorization",
@@ -340,7 +341,7 @@ def matrix(session, settings, pid, row):
             "确定性操作分类及费用",
             "后续形成可审查结果并接入对应能力与授权",
         )
-    elif "code_write" in ops:
+    elif ops & {"code_write", "local_command"}:
         add(
             "authorization",
             "本地修改范围授权",
@@ -360,9 +361,9 @@ def matrix(session, settings, pid, row):
     add(
         "write_scope",
         "修改文件清单",
-        "blocked" if "code_write" in ops and not text["files"] else "passed",
-        "代码修改需明确选择相对文件"
-        if "code_write" in ops and not text["files"]
+        "blocked" if bool(ops & {"code_write", "local_command"}) and not text["files"] else "passed",
+        "修改或配方输入需明确选择相对文件"
+        if bool(ops & {"code_write", "local_command"}) and not text["files"]
         else "已限定所选文件；不是补丁批准",
         "路径保护与清单校验",
         "选择拟修改文件并保存",
@@ -553,13 +554,16 @@ def install(app, sessions, settings):
             row = selected_current(session, project_id, body)
             text = row.payload["text"]
             if text["estimate_micro"] or any(
-                s["operation"] not in {"read_only", "code_write"} for s in text["steps"]
+                s["operation"] not in {"read_only", "code_write", "local_command"} for s in text["steps"]
             ):
                 raise BusinessError(
                     "AUTHORIZATION_UNSUPPORTED", "本轮仅确认本地零费范围，外发/安装/发布等能力尚未开放", 409
                 )
-            if any(s["operation"] == "code_write" for s in text["steps"]) and not text["files"]:
-                raise BusinessError("INPUT_STALE", "代码修改必须先明确文件清单", 409)
+            if (
+                any(s["operation"] in {"code_write", "local_command"} for s in text["steps"])
+                and not text["files"]
+            ):
+                raise BusinessError("INPUT_STALE", "修改或配方输入必须先明确文件清单", 409)
             if source_file_issues(session, settings, project_id, row):
                 raise BusinessError("INPUT_STALE", "输入或选中文件已失效，请先重新核对并保存", 409)
             prior = authorization(session, project_id, row)
