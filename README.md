@@ -385,3 +385,15 @@ http://127.0.0.1:3000/projects/53dc1953-d942-4de9-9622-972a5908e57f/defects
 验证：`.venv/bin/pytest -q backend/tests`（861/861，原 799、新 62），`.venv/bin/ruff check backend scripts`、`.venv/bin/mypy backend/app scripts`（47 源文件）；进入 frontend 运行 `npm run lint`、`npm run typecheck`、`npm run build`。四宽度、实际下载/上传、损坏拒绝、冲突输入保护、归档/取消及最终真实重启已核对；原 1354 行/154 文件保持，最终 16 表1421行/167文件一致，预算四项0。
 
 先开发文档 V1.0，交付结果 V1.1 在 `docs/阶段文档/阶段2-A19-备份导出与归档.md`；[18 张截图、核对步骤与十项闸门](docs/evidence/阶段2-A19/验收说明.md)。无真实 Key，真实模型/D2 及原待验保持，A19/阶段2未宣布通过。下一 PRD FR24“接续摘要与审计”，仍先文档、开发验证、最后本地提交。
+
+### A20：接续摘要与审计（FR24，工程交付，真实效果待验）
+
+双击根目录 `启动产品工厂.command`；进入本机工作台项目→“接续摘要与审计”。查看有效需求引用、草稿冲突、当前任务、待验、有效范围授权与下一步；填写具体理由、明确勾选后保存安全接续摘要。历史摘要保持原内容，来源或有效性变化会提示需重新核对；下载只含此版安全摘要与引用，不包含聊天、原始文档或代码。摘要和聊天继续均不授予执行许可。
+
+选择“追加审计更正”→选择原事件→填说明/理由并确认，原事件与业务结论保持，更正形成修订链。旧审计未记录的字段明确提示，不回填；200项/页可翻页。新事件记录操作者/角色/对象/版本/时间/理由引用，系统执行单列。409时刷新保留输入，再“核对并采用当前事实”；切换、离开或放弃前有确认。归档只读，可下载已有摘要，不能追加更正或保存新摘要。
+
+后端 `/api/v1/factory/projects/{id}/handoff`；GET当前状态/历史/分页审计，GET `/events/{id}`，POST `/summaries` 与 `/corrections` 需要本机鉴权、幂等键、版本哈希和明确确认；GET `/summaries/{id}` 及 `/download` 只限本项目，接续包最多1MiB。错误沿用 `error.code/message`。保存摘要不会执行命令或模型；更正不能提高权限、改验收或覆盖原资料。未知运行不会被较新的计划或成功结果隐藏。
+
+开发验证：`.venv/bin/pytest backend/tests/test_handoff.py -q`；全量沿用 `.venv/bin/pytest backend/tests -q`、`.venv/bin/ruff check backend/app scripts`、`.venv/bin/mypy backend/app scripts`。前端在 `frontend/` 运行 `npm run lint`、`npm run typecheck`、`npm run build`。阶段文档 `docs/阶段文档/阶段2-A20-接续摘要与审计.md`；截图、照做步骤和十项闸门 `docs/evidence/阶段2-A20/验收说明.md`。
+
+合成演示：[接续摘要与审计](http://127.0.0.1:3000/projects/24fd373a-114f-41a9-b628-3ac77a7e0087/handoff)。四版摘要、三次更正及旧事件均保留；环境15分钟后过期会如实显示需核对。真实模型未启用，样例评分与原待验不变，阶段2仍未通过；下一步先核对主PRD覆盖缺口与验收待办。

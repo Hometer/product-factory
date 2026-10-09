@@ -7,7 +7,18 @@ from uuid import uuid4
 from fastapi import Header
 from sqlalchemy import select, text
 
-from .db import AuditEvent, Project, RequestRecord, RequirementRecord, RequirementRevision, now
+from .db import (
+    AuditEvent,
+    CommandAsset,
+    ExecutionAsset,
+    PatchAsset,
+    PlanningAsset,
+    Project,
+    RequestRecord,
+    RequirementRecord,
+    RequirementRevision,
+    now,
+)
 from .requirement_schemas import (
     FIELD_LABELS,
     AnswerInput,
@@ -36,12 +47,82 @@ def record(session, project_id, kind, payload):
 
 
 def audit(session, project_id, action, details):
+    # Metadata for new events only. Existing audit rows remain immutable.
+    metadata = {
+        "object": next(
+            (
+                str(details[k])
+                for k in (
+                    "asset_id",
+                    "run_id",
+                    "round_id",
+                    "authorization_id",
+                    "patch_id",
+                    "preview_id",
+                    "baseline_id",
+                )
+                if details.get(k)
+            ),
+            project_id,
+        ),
+        "version": str(details.get("revision") or details.get("hash") or digest(details)),
+        "reason": str(details.get("reason") or "系统记录：" + action),
+    }
+    for table in (RequirementRecord, PlanningAsset, ExecutionAsset, PatchAsset, CommandAsset):
+        row = session.get(table, metadata["object"])
+        if row and row.project_id == project_id:
+            metadata["object_hash"] = digest(row.payload)
+            if row.payload.get("reason"):
+                # Persist a versioned reference, never duplicate raw user reasons into logs.
+                metadata["reason_ref"] = {
+                    "table": table.__tablename__,
+                    "id": row.id,
+                    "hash": digest(row.payload),
+                }
+                metadata["reason"] = "具体理由引用对应版本记录"
+            break
+    automated = (
+        action in {"analysis_finished", "command_logs_expired", "command_interrupted", "command_running"}
+        or action
+        in {
+            "command_" + state
+            for state in (
+                "starting",
+                "serving",
+                "succeeded",
+                "failed",
+                "timed_out",
+                "stopped",
+                "paused",
+                "cancelled",
+            )
+        }
+        or action
+        in {
+            "patch_" + state
+            for state in (
+                "preparing",
+                "applying",
+                "succeeded",
+                "failed",
+                "rollback_required",
+                "result_unknown",
+                "interrupted",
+                "rolled_back",
+            )
+        }
+    )
     session.add(
         AuditEvent(
             id=str(uuid4()),
             project_id=project_id,
             action=action,
-            details={**details, "actor": "local_operator", "role": "product_owner"},
+            details={
+                **metadata,
+                **details,
+                "actor": "deterministic_executor" if automated else "local_operator",
+                "role": "system" if automated else "product_owner",
+            },
         )
     )
 

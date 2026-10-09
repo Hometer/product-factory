@@ -372,6 +372,9 @@ def create_app(settings: Settings | None = None, model_provider=None) -> FastAPI
                                 project_id=project.id,
                                 action="project_created" if item.kind == "create" else "project_imported",
                                 details={
+                                    "object": project.id,
+                                    "version": "1",
+                                    "reason": "明确确认项目登记预览",
                                     "preview_id": item.id,
                                     "content_hash": item.content_hash,
                                     "actor": "local_operator",
@@ -412,12 +415,13 @@ def create_app(settings: Settings | None = None, model_provider=None) -> FastAPI
     backups.install(app, sessions, settings)
     contexts.install(app, sessions, settings)
     verification.install(app, sessions, settings)
-    from . import acceptance, artifacts, defects, delivery
+    from . import acceptance, artifacts, defects, delivery, handoff
 
     acceptance.install(app, sessions, settings)
     defects.install(app, sessions, settings)
     artifacts.install(app, sessions, settings)
     delivery.install(app, sessions, settings)
+    handoff.install(app, sessions, settings)
     evaluations.install(app, sessions, settings)
     planning.install(app, sessions, settings)
     requirements.install(app, sessions)

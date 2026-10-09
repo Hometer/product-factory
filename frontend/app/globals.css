@@ -155,3 +155,5 @@ summary { cursor:pointer; min-height:44px; padding:8px 0; } details form { max-w
 
 .projects .archive-filter { display:flex;align-items:center;gap:10px;min-height:44px;margin:12px 0; }
 .projects .archive-filter input[type=checkbox] { width:20px;height:20px;min-height:20px;flex:0 0 20px;padding:0;margin:0; }
+
+.handoff-workspace .acceptance-check { min-height: 44px; }
