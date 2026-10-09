@@ -387,11 +387,12 @@ def create_app(settings: Settings | None = None, model_provider=None) -> FastAPI
     provider_capabilities.install(app, sessions, settings)
     contexts.install(app, sessions, settings)
     verification.install(app, sessions, settings)
-    from . import acceptance, artifacts, defects
+    from . import acceptance, artifacts, defects, delivery
 
     acceptance.install(app, sessions, settings)
     defects.install(app, sessions, settings)
     artifacts.install(app, sessions, settings)
+    delivery.install(app, sessions, settings)
     evaluations.install(app, sessions, settings)
     planning.install(app, sessions, settings)
     requirements.install(app, sessions)

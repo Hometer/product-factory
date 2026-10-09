@@ -148,3 +148,7 @@ summary { cursor:pointer; min-height:44px; padding:8px 0; } details form { max-w
 .defect-workspace .acceptance-check {display:flex;align-items:flex-start;gap:10px;margin:16px 0;}
 .defect-workspace .acceptance-check input {width:20px;height:20px;min-height:20px;flex:0 0 20px;margin:2px 0;}
 .defect-workspace pre {font-size:12px;padding:12px;background:#f4f6f8;}
+
+.delivery-workspace .topbar {height:auto;min-height:80px;gap:16px;flex-wrap:wrap;padding-top:16px;padding-bottom:16px;}
+.delivery-workspace .topbar nav {display:flex;flex-wrap:wrap;gap:16px;}
+.delivery-workspace article > a.quiet {display:inline-flex;align-items:center;margin:12px 0;}
