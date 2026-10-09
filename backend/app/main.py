@@ -21,6 +21,7 @@ from . import (
     command_controls,
     commands,
     contexts,
+    costs,
     evaluations,
     execution,
     models,
@@ -385,6 +386,7 @@ def create_app(settings: Settings | None = None, model_provider=None) -> FastAPI
     recovery.install(app, sessions, settings)
     command_controls.install(app, sessions, settings)
     provider_capabilities.install(app, sessions, settings)
+    costs.install(app, sessions, settings)
     contexts.install(app, sessions, settings)
     verification.install(app, sessions, settings)
     from . import acceptance, artifacts, defects, delivery

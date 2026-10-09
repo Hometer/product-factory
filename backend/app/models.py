@@ -252,6 +252,9 @@ def process_run(sessions, settings, provider, identifier, stop=None):
                 key, base = require_config(settings)
                 selected = preview.payload["selected_fields"]
                 input_bound = preview.payload["input_bound"]
+                from . import costs
+
+                costs.enforce(session, item.payload["reserved_micro"])
                 attempts = [*item.payload["attempts"], {"attempt": attempt_number, "state": "dispatching"}]
                 item.payload = {**item.payload, "attempts": attempts}
             call_started = time.monotonic()
@@ -396,7 +399,12 @@ def process_run(sessions, settings, provider, identifier, stop=None):
         except BusinessError as exc:
             with locked(sessions) as session:
                 item = owned_record(session, identifier, pid, "run")
-                settle(session, item, "failed", {"code": exc.code, "message": exc.message})
+                settle(
+                    session,
+                    item,
+                    "result_unknown" if exc.code == "COST_ACCOUNT_INVALID" else "failed",
+                    {"code": exc.code, "message": exc.message},
+                )
             return
         except Exception:
             with locked(sessions) as session:
@@ -592,6 +600,9 @@ def install(app, sessions, settings, provider):
                 raise BusinessError("AUTHORIZATION_REQUIRED", "此授权已用于分析，请重新审查预览", 409)
             account = budget(session)
             amount = preview.payload["reserve_micro"]
+            from . import costs
+
+            costs.enforce(session, amount, reserving=True)
             if (
                 amount > 2_000_000
                 or account.spent_micro + account.reserved_micro + amount > 100_000_000
