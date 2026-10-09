@@ -121,3 +121,10 @@ summary { cursor:pointer; min-height:44px; padding:8px 0; } details form { max-w
 .verification-controls { display:flex; flex-wrap:wrap; gap:16px; margin:16px 0; }
 .verification-controls > div { flex:1; min-width:160px; }
 .verification-workspace .path, .verification-workspace .freeze-review { overflow-wrap:anywhere; }
+.evaluation-workspace .topbar { flex-wrap:wrap; gap:16px; }
+.evaluation-workspace .path, .evaluation-workspace .freeze-review { overflow-wrap:anywhere; }
+.evaluation-workspace pre { white-space:pre-wrap; overflow-wrap:anywhere; }
+.evaluation-editor { border:1px solid var(--line); border-radius:10px; padding:16px; margin:16px 0; }
+.evaluation-check { display:flex; align-items:center; gap:10px; margin:16px 0; }
+.evaluation-check input[type=checkbox] { width:20px; height:20px; flex:0 0 20px; margin:0; }
+.evaluation-workspace select { max-width:100%; }
