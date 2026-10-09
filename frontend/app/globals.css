@@ -128,3 +128,10 @@ summary { cursor:pointer; min-height:44px; padding:8px 0; } details form { max-w
 .evaluation-check { display:flex; align-items:center; gap:10px; margin:16px 0; }
 .evaluation-check input[type=checkbox] { width:20px; height:20px; flex:0 0 20px; margin:0; }
 .evaluation-workspace select { max-width:100%; }
+.acceptance-links { display:flex;flex-wrap:wrap;gap:20px;margin:18px 0; }
+.acceptance-workspace .path,.acceptance-record p,.acceptance-record li { overflow-wrap:anywhere; }
+.acceptance-workspace pre { white-space:pre-wrap;overflow-wrap:anywhere;font-size:12px;max-height:480px;overflow:auto;padding:12px;background:#f4f6f8; }
+.acceptance-workspace select { width:100%;max-width:100%;min-width:0; }
+.acceptance-workspace .acceptance-check { display:flex;align-items:flex-start;gap:10px; }
+.acceptance-workspace .acceptance-check input { width:20px;height:20px;flex:none;margin:2px 0; }
+.acceptance-record { border-top:1px solid #e5e7eb;margin-top:18px;padding-top:18px; }

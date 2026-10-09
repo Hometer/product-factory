@@ -12,7 +12,7 @@ from .db import CommandAsset, CommandRun, RequirementRecord
 from .scanner import BusinessError, digest
 from .verification_schemas import KINDS, Asset, Import, Plan, PlanPayload, Report, ResultPayload, Workspace
 
-NOTICE = "七项工程检查与补充语法/格式分开；人工报告不是平台独立执行。效果评测未接入、仍待真实样例评分；工程记录不批准验收、费用或执行。仅核对显式文件，未选代码不在覆盖范围。"
+NOTICE = "七项工程检查与补充语法/格式分开；人工报告不是平台独立执行。效果评测与阶段验收有独立入口，真实样例仍待评分；本页工程记录不批准验收、费用或执行。仅核对显式文件，未选代码不在覆盖范围。"
 
 
 def rows(session, pid, kind=None):
