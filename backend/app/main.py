@@ -28,6 +28,7 @@ from . import (
     provider_capabilities,
     recovery,
     requirements,
+    verification,
 )
 from .core import ROOT, Settings, load_settings
 from .db import AuditEvent, Preview, Project, RequestRecord, connect
@@ -384,6 +385,7 @@ def create_app(settings: Settings | None = None, model_provider=None) -> FastAPI
     command_controls.install(app, sessions, settings)
     provider_capabilities.install(app, sessions, settings)
     contexts.install(app, sessions, settings)
+    verification.install(app, sessions, settings)
     planning.install(app, sessions, settings)
     requirements.install(app, sessions)
     models.install(app, sessions, settings, model_provider or models.Provider())

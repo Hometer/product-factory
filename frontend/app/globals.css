@@ -115,3 +115,9 @@ summary { cursor:pointer; min-height:44px; padding:8px 0; } details form { max-w
 .context-choice span { min-width:0; overflow-wrap:anywhere; }
 .context-workspace .path, .context-omission { overflow-wrap:anywhere; }
 .context-content { white-space:pre-wrap; overflow-wrap:anywhere; max-height:360px; overflow:auto; padding:16px; border:1px solid var(--line); background:var(--bg); border-radius:12px; font:inherit; }
+.verification-workspace .topbar { flex-wrap:wrap; gap:16px; }
+.verification-matrix { display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:16px; }
+.verification-card { border:1px solid var(--line); border-radius:10px; padding:16px; }
+.verification-controls { display:flex; flex-wrap:wrap; gap:16px; margin:16px 0; }
+.verification-controls > div { flex:1; min-width:160px; }
+.verification-workspace .path, .verification-workspace .freeze-review { overflow-wrap:anywhere; }
