@@ -55,7 +55,7 @@ BUDGET_ID = "factory-development-stage-2"
 ENDPOINT = re.compile(
     r"^https://(?:dashscope\.aliyuncs\.com|[a-zA-Z0-9_-]+\.cn-beijing\.maas\.aliyuncs\.com)/compatible-mode/v1$"
 )
-PII = re.compile(r"\b1[3-9][0-9]{9}\b|\b[0-9]{17}[0-9Xx]\b|[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}")
+PII = re.compile(r"\b1[3-9][0-9]{9}\b|\b[0-9]{17}[0-9Xx]\b|(?<![\w.+-])[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}")
 config_lock = threading.Lock()
 
 
