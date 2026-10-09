@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 
-type Project = { id: string; name: string; description: string; target_user: string; core_task: string; path: string; created_at: string; revision: number };
+type Project = { id: string; name: string; description: string; target_user: string; core_task: string; path: string; created_at: string; revision: number; archived: boolean };
 type Form = { name: string; description: string; target_user: string; core_task: string; path: string; template_version: string; delivery_target: string };
 type Preview = { preview_id: string; content_hash: string; planned_files: string[]; manifest: { warnings: string[]; files: { path: string; status: string; size: number; chars: number }[] } };
 const initialForm: Form = { name: "", description: "", target_user: "", core_task: "", path: "", template_version: "starter-v1", delivery_target: "local" };
@@ -24,6 +24,7 @@ export default function Workbench() {
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
   const [stale, setStale] = useState(false);
+  const [archived, setArchived] = useState(false);
   const [query, setQuery] = useState("");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -33,17 +34,17 @@ export default function Workbench() {
   const [modelEnabled, setModelEnabled] = useState(false);
   const sequence = useRef(0);
 
-  const load = useCallback(async (search = "") => {
+  const load = useCallback(async (search = "", showArchived = archived) => {
     const ticket = ++sequence.current;
     try {
-      const result = await api<{ items: Project[]; total: number }>(`projects?q=${encodeURIComponent(search)}&limit=100`);
+      const result = await api<{ items: Project[]; total: number }>(`projects?q=${encodeURIComponent(search)}&limit=100&archived=${showArchived}`);
       if (ticket !== sequence.current) return;
       setProjects(result.items); setUpdated(new Date().toLocaleTimeString("zh-CN")); setStale(false); setError("");
     } catch (e) {
       if (ticket !== sequence.current) return;
       setStale(true); setError((e as Error).message); setPreview(null);
     } finally { if (ticket === sequence.current) setLoading(false); }
-  }, []);
+  }, [archived]);
 
   function reload() { setLoading(true); void load(query); }
 
@@ -95,11 +96,11 @@ export default function Workbench() {
       <div className="workspace">
         <section className="projects panel" aria-labelledby="projects-title">
           <div className="section-head"><div><p className="eyebrow">01 / 项目</p><h2 id="projects-title">我的产品 <span className="count">{projects.length}</span></h2></div><button className="quiet" onClick={reload} disabled={loading}>刷新列表</button></div>
-          <form className="search" onSubmit={e => { e.preventDefault(); reload(); }}><label className="sr-only" htmlFor="search">搜索项目</label><input id="search" value={query} onChange={e => setQuery(e.target.value)} placeholder="按项目名称搜索" maxLength={60}/><button className="quiet" type="submit">搜索</button></form>
+          <label className="archive-filter"><input type="checkbox" checked={archived} onChange={e=>{const value=e.target.checked;setArchived(value);setSelected(null);setLoading(true);void load(query,value);}}/>查看已归档项目（文件与历史保留）</label><form className="search" onSubmit={e => { e.preventDefault(); reload(); }}><label className="sr-only" htmlFor="search">搜索项目</label><input id="search" value={query} onChange={e => setQuery(e.target.value)} placeholder="按项目名称搜索" maxLength={60}/><button className="quiet" type="submit">搜索</button></form>
           <p className="list-meta">{loading ? "正在读取项目…" : stale ? `显示上次成功读取的数据 · ${updated || "尚无数据"}` : `最近读取 ${updated || "—"}`}</p>
-          {!loading && !stale && projects.length === 0 && <div className="empty"><span className="empty-symbol">＋</span><h3>{query ? "没有匹配的项目" : "从你的第一个产品开始"}</h3><p>{query ? "换一个名称，再搜索一次。" : "接入已有目录，或创建一个新项目。资料会先预览，再由你确认。"}</p></div>}
-          <div className="project-list">{projects.map(project => <button className={`project-card ${selected?.id === project.id ? "selected" : ""}`} key={project.id} onClick={() => setSelected(project)}><div className="card-top"><span className="project-icon">{project.name.slice(0, 1)}</span><span className="badge">已登记</span></div><h3>{project.name}</h3><p>{project.core_task}</p><span className="path">{project.path}</span><div className="card-footer"><span>{new Date(project.created_at).toLocaleDateString("zh-CN")}</span><span>查看资料 →</span></div></button>)}</div>
-          {selected && <div className="detail"><h3>{selected.name}</h3><dl><dt>目标用户</dt><dd>{selected.target_user}</dd><dt>核心任务</dt><dd>{selected.core_task}</dd><dt>说明</dt><dd>{selected.description || "未填写"}</dd><dt>目录</dt><dd className="path">{selected.path}</dd></dl><p>已登记表示项目信息已保存；执行与验收将在后续阶段提供。</p><Link className="primary" href={`/projects/${selected.id}`}>整理需求与确认基线 →</Link></div>}
+          {!loading && !stale && projects.length === 0 && <div className="empty"><span className="empty-symbol">＋</span><h3>{query ? "没有匹配的项目" : archived ? "暂无归档项目" : "从你的第一个产品开始"}</h3><p>{query ? "换一个名称，再搜索一次。" : archived ? "归档保留文件和历史，取消归档后恢复可见性。" : "接入已有目录，或创建一个新项目。资料会先预览，再由你确认。"}</p></div>}
+          <div className="project-list">{projects.map(project => <button className={`project-card ${selected?.id === project.id ? "selected" : ""}`} key={project.id} onClick={() => setSelected(project)}><div className="card-top"><span className="project-icon">{project.name.slice(0, 1)}</span><span className="badge">{project.archived?"已归档":"已登记"}</span></div><h3>{project.name}</h3><p>{project.core_task}</p><span className="path">{project.path}</span><div className="card-footer"><span>{new Date(project.created_at).toLocaleDateString("zh-CN")}</span><span>查看资料 →</span></div></button>)}</div>
+          {selected && <div className="detail"><h3>{selected.name}</h3><dl><dt>目标用户</dt><dd>{selected.target_user}</dd><dt>核心任务</dt><dd>{selected.core_task}</dd><dt>说明</dt><dd>{selected.description || "未填写"}</dd><dt>目录</dt><dd className="path">{selected.path}</dd></dl><p>已登记表示项目信息已保存；执行与验收将在后续阶段提供。</p><Link className="planning-entry" href={`/projects/${selected.id}/backups`}>备份与归档 →</Link><Link className="primary" href={`/projects/${selected.id}`}>整理需求与确认基线 →</Link></div>}
         </section>
         <section className="registration panel" aria-labelledby="register-title">
           <div className="section-head"><div><p className="eyebrow">02 / 登记</p><h2 id="register-title">添加一个产品</h2></div></div>

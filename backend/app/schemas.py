@@ -42,6 +42,7 @@ class ProjectOutput(StrictModel):
     created_at: str
     revision: int
     status: Literal["registered"] = "registered"
+    archived: bool = False
 
 
 class ProjectList(StrictModel):

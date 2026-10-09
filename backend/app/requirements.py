@@ -213,6 +213,10 @@ def mutate(sessions, project_id, action, body, key, callback):
             if existing.request_hash != request_hash:
                 raise BusinessError("IDEMPOTENCY_CONFLICT", "同一确认标识对应不同内容", 409)
             return existing.response
+        from .backups import KINDS, archived
+
+        if action not in KINDS and archived(session, project_id):
+            raise BusinessError("PROJECT_ARCHIVED", "项目已归档，请先取消归档；旧任务不会自动运行", 409)
         result = callback(session)
         session.add(RequestRecord(key=marker, request_hash=request_hash, response=result))
         return result

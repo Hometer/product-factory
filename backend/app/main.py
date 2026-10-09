@@ -18,6 +18,7 @@ from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from starlette.exceptions import HTTPException
 
 from . import (
+    backups,
     command_controls,
     commands,
     contexts,
@@ -152,6 +153,13 @@ def create_app(settings: Settings | None = None, model_provider=None) -> FastAPI
             return reject("FORBIDDEN", "请求来源不在允许范围", 403)
         if request.method not in {"GET", "HEAD"} and origin not in settings.origins:
             return reject("FORBIDDEN", "写请求需要工作台来源", 403)
+        if request.method == "POST" and "/backups/" in request.url.path:
+            content = bytearray()
+            async for chunk in request.stream():
+                content.extend(chunk)
+                if len(content) > 12 * 1024 * 1024:
+                    return reject("INPUT_INVALID", "备份请求超过 12 MiB", 413)
+            request._body = bytes(content)
         try:
             response = await call_next(request)
         except Exception:
@@ -226,15 +234,25 @@ def create_app(settings: Settings | None = None, model_provider=None) -> FastAPI
 
     @app.get(f"{PREFIX}/projects", response_model=ProjectList)
     def list_projects(
-        offset: int = Query(0, ge=0), limit: int = Query(30, ge=1, le=100), q: str = Query("", max_length=60)
+        offset: int = Query(0, ge=0),
+        limit: int = Query(30, ge=1, le=100),
+        q: str = Query("", max_length=60),
+        archived: bool = Query(False),
     ):
         with sessions() as session:
             stmt = select(Project)
             projects = session.scalars(stmt.order_by(Project.created_at.desc())).all()
             # SQLite JSON/name matching is small and deterministic in this first slice.
-            selected = [p for p in projects if q.casefold() in p.payload["name"].casefold()]
+            selected = [
+                p
+                for p in projects
+                if q.casefold() in p.payload["name"].casefold()
+                and backups.archived(session, p.id) == archived
+            ]
             return {
-                "items": [project_output(p) for p in selected[offset : offset + limit]],
+                "items": [
+                    {**project_output(p), "archived": archived} for p in selected[offset : offset + limit]
+                ],
                 "total": len(selected),
             }
 
@@ -244,7 +262,7 @@ def create_app(settings: Settings | None = None, model_provider=None) -> FastAPI
             project = session.get(Project, project_id)
             if not project:
                 raise BusinessError("NOT_FOUND", "项目不存在", 404)
-            return project_output(project)
+            return {**project_output(project), "archived": backups.archived(session, project_id)}
 
     def preview(payload: ProjectInput, kind: str):
         path = canonical(payload.path, settings.allowed_roots)
@@ -364,7 +382,7 @@ def create_app(settings: Settings | None = None, model_provider=None) -> FastAPI
                         session.flush()
                         templates.pin_initial(session, project.id)
                     item.confirmed_project_id = project.id
-                response = project_output(project)
+                response = {**project_output(project), "archived": backups.archived(session, project.id)}
                 session.add(RequestRecord(key=idempotency_key, request_hash=request_hash, response=response))
                 session.commit()
                 return response
@@ -391,6 +409,7 @@ def create_app(settings: Settings | None = None, model_provider=None) -> FastAPI
     provider_capabilities.install(app, sessions, settings)
     costs.install(app, sessions, settings)
     templates.install(app, sessions, settings)
+    backups.install(app, sessions, settings)
     contexts.install(app, sessions, settings)
     verification.install(app, sessions, settings)
     from . import acceptance, artifacts, defects, delivery
