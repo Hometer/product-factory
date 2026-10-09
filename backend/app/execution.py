@@ -11,7 +11,7 @@ from uuid import uuid4
 from fastapi import Header
 from sqlalchemy import select
 
-from . import models, planning
+from . import contexts, models, planning
 from .db import ExecutionAsset, ModelBudget
 from .execution_schemas import (
     Authorize,
@@ -196,6 +196,9 @@ def prepare(session, settings, pid, body, generated):
     task = next((t for t in plan.payload["text"]["tasks"] if t["id"] == body.task_id), None)
     if not task:
         raise BusinessError("NOT_FOUND", "任务不在当前阶段计划内", 404)
+    context = (
+        contexts.validate(session, settings, pid, body.context_id, body.task_id) if body.context_id else None
+    )
     tech = planning.owned(session, pid, plan.payload["technical_id"], "technical")
     base = owned_record(session, plan.baseline_id, pid, "baseline")
     stage = next(s for s in plan.payload["text"]["stages"] if s["id"] == task["stage_id"])
@@ -228,6 +231,7 @@ def prepare(session, settings, pid, body, generated):
     # Verification wording does not enlarge permissions. Operational changes always do.
     authorization_hash = digest(
         {
+            **({"context_hash": digest(context.payload)} if context else {}),
             "project_id": pid,
             "task_id": body.task_id,
             "requirements": relevant,
@@ -243,6 +247,8 @@ def prepare(session, settings, pid, body, generated):
     )
     return PlanPayload.model_validate(
         {
+            "context_id": context.id if context else None,
+            "context_hash": digest(context.payload) if context else None,
             "source": "rule_template" if generated else "user_edited",
             "inputs": {
                 "baseline_id": base.id,
@@ -289,6 +295,13 @@ def selected_current(session, pid, body):
 
 def source_file_issues(session, settings, pid, row):
     problems = []
+    if identifier := row.payload.get("context_id"):
+        try:
+            context = contexts.validate(session, settings, pid, identifier, row.task_id)
+            if digest(context.payload) != row.payload.get("context_hash"):
+                raise BusinessError("CONTEXT_STALE", "绑定上下文摘要不匹配", 409)
+        except BusinessError as exc:
+            problems.append(("context", exc.message))
     try:
         source(session, settings, pid, row.planning_id)
     except BusinessError as exc:
@@ -320,6 +333,15 @@ def matrix(session, settings, pid, row):
         "后端重新核对当前不可变来源与15分钟环境有效期",
         "回到技术与计划页重新核对当前基线、环境、方案和计划",
     )
+    if row.payload.get("context_id"):
+        add(
+            "context",
+            "本阶段上下文来源",
+            "blocked" if "context" in problems else "passed",
+            problems.get("context", "绑定上下文的当前依据与选中资料版本相同"),
+            "后端重新核对快照归属、任务、版本与指纹",
+            "回上下文页重新选择保存，再绑定新执行准备",
+        )
     add(
         "files",
         "显式文件外部变更",
@@ -467,6 +489,11 @@ def workspace(session, settings, pid):
     for row in rows(session, pid, kind="plan"):
         plans.setdefault(row.task_id, row)
     return {
+        "context_choices": [
+            {"id": r.id, "task_id": r.payload["task_id"], "created_at": timestamp(r.created_at)}
+            for r in contexts.rows(session, pid)
+            if r.payload["stage"] == "execution"
+        ],
         "planning_id": plan.id if plan else None,
         "planning_revision": plan.revision if plan else None,
         "tasks": [{k: t[k] for k in ("id", "title", "stage_id")} for t in plan.payload["text"]["tasks"]]

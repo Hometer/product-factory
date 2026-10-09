@@ -86,40 +86,45 @@ def read_safe(path: Path, dir_fd: int | None = None) -> bytes:
     return raw
 
 
-def parse(raw: bytes, suffix: str) -> tuple[str, int]:
+def extract(raw: bytes, suffix: str) -> tuple[str, str]:
     try:
         if suffix == ".docx":
             with zipfile.ZipFile(io.BytesIO(raw)) as archive:
                 if sum(i.file_size for i in archive.infolist()) > MAX_BATCH:
-                    return "unsafe_archive", 0
+                    return "unsafe_archive", ""
                 if len(archive.infolist()) > 2000:
-                    return "unsafe_archive", 0
+                    return "unsafe_archive", ""
                 names = archive.namelist()
                 if "word/document.xml" not in names or "[Content_Types].xml" not in names:
-                    return "invalid_type", 0
+                    return "invalid_type", ""
                 if any(".." in Path(n).parts or n.startswith("/") for n in names):
-                    return "unsafe_archive", 0
+                    return "unsafe_archive", ""
             doc = Document(io.BytesIO(raw))
             text = "\n".join(p.text for p in doc.paragraphs)
             text += "\n".join(c.text for t in doc.tables for row in t.rows for c in row.cells)
         elif suffix == ".pdf":
             if not raw.startswith(b"%PDF-"):
-                return "invalid_type", 0
+                return "invalid_type", ""
             reader = PdfReader(io.BytesIO(raw), strict=True)
             if reader.is_encrypted or len(reader.pages) > 500:
-                return "needs_manual", 0
+                return "needs_manual", ""
             text = "\n".join(p.extract_text() or "" for p in reader.pages)
             if not text.strip():
-                return "needs_transcription", 0
+                return "needs_transcription", ""
         else:
             if b"\0" in raw:
-                return "invalid_type", 0
+                return "invalid_type", ""
             text = raw.decode("utf-8-sig")
         if SECRET.search(text):
-            return "sensitive_excluded", 0
-        return "parsed", len(text)
+            return "sensitive_excluded", ""
+        return "parsed", text
     except Exception:
-        return "parse_failed", 0
+        return "parse_failed", ""
+
+
+def parse(raw: bytes, suffix: str) -> tuple[str, int]:
+    status, text = extract(raw, suffix)
+    return status, len(text)
 
 
 def scan(root: Path) -> dict:

@@ -6,9 +6,9 @@ type Step = { id: string; operation: string; instruction: string; output: string
 type Text = { modifications: string; files: string[]; steps: Step[]; estimate_micro: number; recovery: string; risks: string };
 type Check = { key: string; label: string; status: string; result: string; method: string; guidance: string };
 type Inputs = { baseline_revision: number; technical_revision: number; planning_revision: number; stage_id: string; task_title: string; requirement_ids: string[]; task_dependencies: string[]; stage_dependencies: string[]; version_dependencies: string[]; environment_id: string };
-type Asset = { id: string; task_id: string; kind: string; revision: number; content_hash: string; created_at: string; payload: { text?: Text; inputs?: Inputs; files?: { path: string; exists: boolean; size: number; sha256: string | null }[]; acceptance?: Record<string,string>; required_checks?: string[]; checks?: Check[]; limitations?: string[]; checked_at?: string; execution_id?: string; authorization_id?: string | null; reason?: string; scope?: string; authorization_hash?: string; content_hash?: string; budget?: { spent_micro: number; reserved_micro: number; requests_used: number; requests_reserved: number }; source?: string } };
+type Asset = { id: string; task_id: string; kind: string; revision: number; content_hash: string; created_at: string; payload: { context_id?:string|null;context_hash?:string|null;text?: Text; inputs?: Inputs; files?: { path: string; exists: boolean; size: number; sha256: string | null }[]; acceptance?: Record<string,string>; required_checks?: string[]; checks?: Check[]; limitations?: string[]; checked_at?: string; execution_id?: string; authorization_id?: string | null; reason?: string; scope?: string; authorization_hash?: string; content_hash?: string; budget?: { spent_micro: number; reserved_micro: number; requests_used: number; requests_reserved: number }; source?: string } };
 type Entry = { task_id: string; plan: Asset; check: Asset | null; authorization: Asset | null };
-type Workspace = { planning_id: string | null; planning_revision: number | null; tasks: { id: string; title: string; stage_id: string }[]; source_issues: string[]; entries: Entry[]; history: Pick<Asset,"id"|"task_id"|"kind"|"revision"|"created_at">[] };
+type Workspace = { context_choices:{id:string;task_id:string;created_at:string}[];planning_id: string | null; planning_revision: number | null; tasks: { id: string; title: string; stage_id: string }[]; source_issues: string[]; entries: Entry[]; history: Pick<Asset,"id"|"task_id"|"kind"|"revision"|"created_at">[] };
 const names: Record<string,string> = { plan:"执行计划",check:"开工检查",grant:"本地范围授权",revoke:"撤销记录" };
 const operations: Record<string,string> = { read_only:"本地只读",code_write:"代码写入",local_command:"本地受控配方",model_call:"模型外发（未开放）",dependency_install:"依赖安装（未开放）",deploy:"发布（未开放）",irreversible:"不可逆动作（未开放）" };
 const yuan = (micro: number) => (micro/1_000_000).toFixed(6).replace(/0+$/,"").replace(/\.$/,"");
@@ -22,6 +22,7 @@ async function api<T>(route: string, body?: unknown, key?: string): Promise<T> {
 function Snapshot({asset}: {asset: Asset}) {
   const p = asset.payload;
   return <div className="freeze-review"><h3>{names[asset.kind]} · {asset.task_id} · 修订 {asset.revision}</h3><p>{new Date(asset.created_at).toLocaleString("zh-CN")}</p>
+    {asset.kind==="plan" && <p>上下文绑定：{p.context_id ?? "未绑定；旧准备保留原范围"}{p.context_hash ? " · 摘要 "+p.context_hash.slice(0,16) : ""}</p>}
     {p.inputs && <p>输入：需求 {p.inputs.baseline_revision} / 技术方案 {p.inputs.technical_revision} / 阶段计划 {p.inputs.planning_revision}；{p.inputs.stage_id} · {p.inputs.task_title}；需求 {p.inputs.requirement_ids.join("、") || "基础设施/缺陷"}；前置 {p.inputs.task_dependencies.concat(p.inputs.stage_dependencies,p.inputs.version_dependencies).join("、") || "无"}</p>}
     {p.text && <><p><strong>预期修改：</strong>{p.text.modifications}</p><p><strong>文件范围：</strong>{p.text.files.join("、") || "尚未选择"}</p>{p.files?.map(f => <p key={f.path}>{f.path} · {f.exists ? "已有文件，"+f.size+"字节，指纹 "+f.sha256?.slice(0,12) : "拟新增，尚未创建"}</p>)}{p.text.steps.map(s => <div className="gap" key={s.id}><strong>{s.id} · {operations[s.operation]}</strong><p>步骤：{s.instruction}</p><p>产物：{s.output}</p><p>验证：{s.validation}</p></div>)}<p><strong>费用估计：</strong>{yuan(p.text.estimate_micro)} 元（准备估算，未消费；外部操作还需可靠报价）</p><p><strong>恢复：</strong>{p.text.recovery}</p><p><strong>风险：</strong>{p.text.risks}</p></>}
     {p.acceptance && <><h4>基线原验收要求</h4>{Object.entries(p.acceptance).map(([id,value]) => <p key={id}>{id}：{value}</p>)}</>}{p.required_checks && <><h4>保留的阶段闸门</h4><ol>{p.required_checks.map(c => <li key={c}>{c}</li>)}</ol></>}
@@ -39,6 +40,7 @@ export default function ExecutionEditor({projectId}: {projectId: string}) {
   const [workspace,setWorkspace] = useState<Workspace|null>(null);
   const [name,setName] = useState("");
   const [taskId,setTaskId] = useState("");
+  const [contextId,setContextId] = useState("");
   const [text,setText] = useState<Text|null>(null);
   const [fileInput,setFileInput] = useState("");
   const [money,setMoney] = useState("0");
@@ -55,7 +57,7 @@ export default function ExecutionEditor({projectId}: {projectId: string}) {
   const row = entry?.plan;
   const select = useCallback((state:Workspace,id:string) => {
     const plan=state.entries.find(e => e.task_id === id)?.plan.payload.text ?? null;
-    setTaskId(id);setText(plan);setFileInput(plan?.files.join("\n") ?? "");setMoney(yuan(plan?.estimate_micro ?? 0));setDirty(false);setReview(false);
+    setContextId(state.entries.find(e=>e.task_id===id)?.plan.payload.context_id ?? "");setTaskId(id);setText(plan);setFileInput(plan?.files.join("\n") ?? "");setMoney(yuan(plan?.estimate_micro ?? 0));setDirty(false);setReview(false);
   },[]);
   const load = useCallback(async (replace:boolean,id?:string) => {
     const state=await api<Workspace>(base);
@@ -84,7 +86,7 @@ export default function ExecutionEditor({projectId}: {projectId: string}) {
   const localScope=!!text && text.estimate_micro===0 && text.steps.every(s=>["read_only","code_write","local_command"].includes(s.operation)) && (!text.steps.some(s=>["code_write","local_command"].includes(s.operation)) || text.files.length>0);
   async function save() {
     if(!workspace || !text || !complete || !workspace.planning_id)return;
-    const body={planning_id:workspace.planning_id,task_id:taskId,expected_revision:row?.revision ?? 0,text:{...text,files:fileInput.split("\n").map(s=>s.trim()).filter(Boolean),estimate_micro:Math.round(Number(money)*1_000_000)}};
+    const body={context_id:contextId||null,planning_id:workspace.planning_id,task_id:taskId,expected_revision:row?.revision ?? 0,text:{...text,files:fileInput.split("\n").map(s=>s.trim()).filter(Boolean),estimate_micro:Math.round(Number(money)*1_000_000)}};
     const encoded=JSON.stringify(body);
     if(request.current?.body!==encoded)request.current={body:encoded,key:crypto.randomUUID()};
     const saved=await api<Asset>(base+"/plans/revisions",body,request.current.key);
@@ -92,7 +94,7 @@ export default function ExecutionEditor({projectId}: {projectId: string}) {
     if(state.entries.find(e=>e.task_id===taskId)?.plan.id!==saved.id)throw new APIError("保存后已有新的服务器修订，输入保留，请核对。","REVISION_CONFLICT");
     select(state,taskId);setNotice("执行草稿已保存；尚未执行，检查需重新运行。");
   }
-  return <div className="shell"><header className="topbar"><Link className="brand" href="/" onClick={leave}><span className="brandmark">工</span>产品工厂</Link><Link href={"/projects/"+projectId+"/planning"} onClick={leave}>← 技术与阶段计划</Link></header><main><Link className="planning-entry" href={"/projects/"+projectId+"/commands"} onClick={leave}>命令执行与运行记录 →</Link><Link className="planning-entry" href={"/projects/"+projectId+"/patches"} onClick={leave}>补丁预览与安全写入 →</Link>
+  return <div className="shell"><header className="topbar"><Link className="brand" href="/" onClick={leave}><span className="brandmark">工</span>产品工厂</Link><Link href={"/projects/"+projectId+"/planning"} onClick={leave}>← 技术与阶段计划</Link></header><main><Link className="planning-entry" href={"/projects/"+projectId+"/context"} onClick={leave}>上下文与知识资产 →</Link><Link className="planning-entry" href={"/projects/"+projectId+"/commands"} onClick={leave}>命令执行与运行记录 →</Link><Link className="planning-entry" href={"/projects/"+projectId+"/patches"} onClick={leave}>补丁预览与安全写入 →</Link>
     <div className="intro"><div><p className="eyebrow">EXECUTION / PREFLIGHT</p><h1>{name || "项目"} · 开工检查</h1><p className="subtitle">把要改什么、怎样验证与恢复写清楚，再核对开工条件。</p></div><div className="scope"><strong>{busy ? "正在处理…" : dirty ? "输入尚未保存" : row ? "已保存 · "+taskId+" 执行修订 "+row.revision : "尚未生成执行草稿"}</strong><span>手动执行待核对 · 自动执行未开放</span></div></div>
     <p className="hint">范围授权只记录明确的本地零费操作；不启动任务、不修改项目文件、不调用模型、不代表阶段通过。</p>
     {error && <div className="message error" role="alert">{error}<button disabled={busy} onClick={()=>void action(async()=>{await load(!workspace);setNotice("服务器记录已读取，当前输入保留；核对后明确保存。");})}>重新核对服务器记录</button></div>}
@@ -103,7 +105,7 @@ export default function ExecutionEditor({projectId}: {projectId: string}) {
       {!workspace.tasks.length && !workspace.entries.length && <option value="">先确认阶段计划</option>}
       {workspace.tasks.map(t=><option key={t.id} value={t.id}>{t.id} · {t.title} · {t.stage_id}</option>)}
       {workspace.entries.filter(e=>!workspace.tasks.some(t=>t.id===e.task_id)).map(e=><option key={e.task_id} value={e.task_id}>{e.task_id} · 旧执行草稿（当前计划无此任务）</option>)}
-    </select><button className="quiet" disabled={!ready || !taskId || workspace.source_issues.length>0 || !workspace.tasks.some(t=>t.id===taskId)} onClick={()=>void action(async()=>{await api(base+"/plans/generate",{planning_id:workspace.planning_id,task_id:taskId,expected_revision:row?.revision ?? 0});await load(true,taskId);setNotice("规则执行草稿已生成，必须核对；没有启动任务。");})}>生成规则执行草稿</button></section>
+    </select><label htmlFor="execution-context">绑定本任务上下文（可选，仅本机）</label><select id="execution-context" value={contextId} disabled={busy} onChange={e=>{setContextId(e.target.value);if(text)setDirty(true);setReview(false);}}><option value="">未绑定，沿用旧准备范围</option>{workspace.context_choices.filter(c=>c.task_id===taskId).map(c=><option key={c.id} value={c.id}>{c.id.slice(0,8)} · {new Date(c.created_at).toLocaleString("zh-CN")}</option>)}{contextId&&!workspace.context_choices.some(c=>c.id===contextId)&&<option value={contextId}>{contextId} · 历史绑定</option>}</select><p className="hint">先在上下文页保存同一任务的执行快照；绑定来源需当前有效，绑定变化须重新确认操作范围。资料不授予权限。</p><button className="quiet" disabled={!ready || !taskId || workspace.source_issues.length>0 || !workspace.tasks.some(t=>t.id===taskId)} onClick={()=>void action(async()=>{await api(base+"/plans/generate",{context_id:contextId||null,planning_id:workspace.planning_id,task_id:taskId,expected_revision:row?.revision ?? 0});await load(true,taskId);setNotice("规则执行草稿已生成，必须核对；没有启动任务。");})}>生成规则执行草稿</button></section>
     {text && <section className="panel model-panel"><p className="eyebrow">02 / 执行计划</p><h2>预期修改与验证</h2><p className="source-note">来源：{row?.payload.source==="rule_template" ? "规则建议，待人工核对" : "用户编辑"}；输入需求 {row?.payload.inputs?.baseline_revision} / 方案 {row?.payload.inputs?.technical_revision} / 阶段计划 {row?.payload.inputs?.planning_revision}</p><fieldset disabled={busy}>
       <label htmlFor="execution-modifications">预期修改（具体影响）</label><textarea id="execution-modifications" maxLength={2000} value={text.modifications} onChange={e=>change({modifications:e.target.value})}/>
       <label htmlFor="execution-files">拟修改或核对文件（相对路径，每行一个，最多20个）</label><textarea id="execution-files" rows={3} maxLength={4020} value={fileInput} onChange={e=>{setFileInput(e.target.value);setDirty(true);setReview(false);}}/><p className="hint">只保存所选文件指纹；未选文件不在检查范围内。秘密、数据、依赖目录、链接文件及超限文件拒绝核对。拟新增文件不会创建。</p>

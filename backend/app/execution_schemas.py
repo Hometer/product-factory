@@ -81,6 +81,8 @@ class InputVersions(StrictModel):
 
 
 class PlanPayload(StrictModel):
+    context_id: str | None = None
+    context_hash: str | None = None
     source: Literal["rule_template", "user_edited"]
     inputs: InputVersions
     text: ExecutionText
@@ -141,6 +143,7 @@ class ExecutionAsset(StrictModel):
 
 
 class Generate(StrictModel):
+    context_id: str | None = Field(default=None, max_length=100)
     planning_id: str
     task_id: str = Field(pattern=r"^T[0-9]{1,4}$")
     expected_revision: int = Field(ge=0)
@@ -199,7 +202,14 @@ class Summary(StrictModel):
     created_at: str
 
 
+class ContextChoice(StrictModel):
+    id: str
+    task_id: str
+    created_at: str
+
+
 class ExecutionWorkspace(StrictModel):
+    context_choices: list[ContextChoice] = Field(default_factory=list)
     planning_id: str | None
     planning_revision: int | None
     tasks: list[TaskChoice]

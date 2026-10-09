@@ -20,6 +20,7 @@ from starlette.exceptions import HTTPException
 from . import (
     command_controls,
     commands,
+    contexts,
     execution,
     models,
     patches,
@@ -382,6 +383,7 @@ def create_app(settings: Settings | None = None, model_provider=None) -> FastAPI
     recovery.install(app, sessions, settings)
     command_controls.install(app, sessions, settings)
     provider_capabilities.install(app, sessions, settings)
+    contexts.install(app, sessions, settings)
     planning.install(app, sessions, settings)
     requirements.install(app, sessions)
     models.install(app, sessions, settings, model_provider or models.Provider())
