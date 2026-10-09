@@ -168,6 +168,9 @@ def public(session, settings, row):
     if not contexts.safe(json.dumps(row.payload, ensure_ascii=False), settings):
         raise BusinessError("CONTEXT_EXCLUDED", "验证历史可能包含当前受保护资料，不能返回原文", 409)
     issues = problems(session, settings, row)
+    from . import defects
+
+    issues.extend(defects.conclusion_issues(session, settings, row.project_id, row.id))
     return {
         "id": row.id,
         "project_id": row.project_id,

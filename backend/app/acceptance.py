@@ -361,6 +361,11 @@ def collect(session, settings, pid, stage_id, declarations=None):
         evaluation_basis=evaluations.basis(session, settings, pid),
         dependencies=dependencies,
     )
+    from . import defects
+
+    _, change_control = defects.gate(session, settings, pid)
+    if change_control["records"] or change_control["sources"]:
+        snapshot["change_control"] = change_control
     result = dict(
         stage=stage,
         tasks=tasks,
@@ -384,6 +389,9 @@ def gate_blockers(session, settings, pid, data, visited=None):
         for c in data["matrix"]
         if c["status"] not in {"passed", "not_applicable"}
     ]
+    from . import defects
+
+    result.extend(defects.gate(session, settings, pid)[0])
     visited = (visited or set()) | {data["stage"]["id"]}
     for sid in data["snapshot"]["dependencies"]:
         d = latest(session, pid, sid, "acceptance_decision")
@@ -423,6 +431,9 @@ def package_state(session, settings, pid, p):
     except BusinessError as exc:
         issues.append("当前来源不可核对：" + exc.message)
         blockers.append("来源异常，禁止通过")
+    from . import defects
+
+    issues.extend(defects.conclusion_issues(session, settings, pid, p.id))
     return issues, blockers
 
 

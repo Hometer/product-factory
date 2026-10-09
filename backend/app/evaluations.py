@@ -235,6 +235,9 @@ def public(session, settings, row):
         raise BusinessError("CONTEXT_EXCLUDED", "效果记录可能含当前受保护资料，不能返回原文", 409)
     plan = row if row.kind == "evaluation_plan" else owned(session, row.project_id, row.payload["plan_id"])
     issues = plan_issues(session, settings, row.project_id, plan)
+    from . import defects
+
+    issues.extend(defects.conclusion_issues(session, settings, row.project_id, row.id))
     if row.kind == "evaluation_standard":
         current_scores = newest_scores(session, row.project_id, plan.id)
         if set(row.payload["score_ids"]) != {

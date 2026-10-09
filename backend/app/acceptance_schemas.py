@@ -164,6 +164,7 @@ class Snapshot(Contract):
     evidence_hashes: dict[str, str]
     evaluation_basis: dict
     dependencies: dict[str, str | None]
+    change_control: dict | None = None
 
 
 class PackagePayload(Contract):

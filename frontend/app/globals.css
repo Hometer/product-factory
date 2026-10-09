@@ -135,3 +135,16 @@ summary { cursor:pointer; min-height:44px; padding:8px 0; } details form { max-w
 .acceptance-workspace .acceptance-check { display:flex;align-items:flex-start;gap:10px; }
 .acceptance-workspace .acceptance-check input { width:20px;height:20px;flex:none;margin:2px 0; }
 .acceptance-record { border-top:1px solid #e5e7eb;margin-top:18px;padding-top:18px; }
+
+.defect-workspace pre {white-space:pre-wrap;overflow-wrap:anywhere;max-height:480px;overflow:auto;}
+.defect-workspace .path {overflow-wrap:anywhere;}
+.defect-workspace fieldset {min-width:0;}
+.defect-workspace textarea,.defect-workspace select {max-width:100%;}
+.defect-workspace .panel {margin-bottom:24px;}
+.defect-workspace .panel > h2 {margin-top:0;margin-bottom:14px;}
+.defect-workspace p {overflow-wrap:anywhere;}
+.defect-workspace select {width:100%;min-width:0;}
+.defect-workspace .quiet {margin:4px 8px 4px 0;}
+.defect-workspace .acceptance-check {display:flex;align-items:flex-start;gap:10px;margin:16px 0;}
+.defect-workspace .acceptance-check input {width:20px;height:20px;min-height:20px;flex:0 0 20px;margin:2px 0;}
+.defect-workspace pre {font-size:12px;padding:12px;background:#f4f6f8;}
