@@ -56,7 +56,7 @@ def checkpoint(session, row, phase, verdict, reason=""):
 
 
 def inspect(session, settings, row):
-    from . import commands
+    from . import command_controls, commands
 
     d = row.details
     if row.state in commands.ACTIVE:
@@ -82,7 +82,7 @@ def inspect(session, settings, row):
         )
         directory = settings.data_dir / "command-runs" / row.id if settings else None
         if known_queue and not launched and no_trace and directory and not os.path.lexists(directory):
-            if d["stop_requested"]:
+            if d["stop_requested"] or command_controls.request(session, row):
                 return "stopped", "已请求停止且确定未执行；不能以恢复覆盖停止请求"
             return "not_executed", "审批入队检查点已保存，未提交启动意图且无执行痕迹；可审阅继续原任务"
         return "result_unknown", "无法确定是否已执行或已停止；保留占用，不按历史 PID 操作，不自动重发"
@@ -107,6 +107,10 @@ def inspect(session, settings, row):
             return "conflict", "产物缺失、被修改或无法核对；原结论保留为历史，需排查"
     if row.state == "succeeded" and not d["artifacts"]:
         return "conflict", "成功记录缺少可核对产物，不能作为当前有效通过依据"
+    if row.state == "paused":
+        return "paused", "用户暂停已生效，不自动恢复；请到暂停取消页明确继续并核对来源"
+    if row.state == "cancelled":
+        return "cancelled", "用户取消已生效，保留结果与历史；禁止继续或重试"
     return "completed", "原运行已终结，保留退出码和结果；不能用恢复重跑，成功不代表阶段验收"
 
 
@@ -143,7 +147,7 @@ def task_public(session, settings, row):
     state = "unknown"
     if verdict == "not_executed":
         state = "pending"
-    elif verdict == "stopped" or row.state == "stopped":
+    elif verdict in {"stopped", "paused", "cancelled"} or row.state == "stopped":
         state = "stopped"
     elif verdict == "active":
         state = "pending" if row.state == "queued" else "running"

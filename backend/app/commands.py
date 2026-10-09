@@ -20,7 +20,7 @@ from uuid import uuid4
 from fastapi import Header
 from sqlalchemy import select
 
-from . import execution, patches, recovery
+from . import command_controls, execution, patches, recovery
 from .command_schemas import Asset, Preview, Result, Run, Start, Stop, Workspace
 from .core import ROOT
 from .db import CommandAsset, CommandRun, PatchAsset, PatchRun
@@ -283,10 +283,19 @@ def persist(sessions, run_id, state, details):
         row = session.get(CommandRun, run_id)
         # stop_requested may have been committed while this process was reading output.
         details["stop_requested"] = details["stop_requested"] or row.details["stop_requested"]
+        state, details = command_controls.finish(session, row, state, details)
         row.state, row.details = state, details
-        recovery.checkpoint(session, row, "executing" if state in ACTIVE else "finished",
-                            "active" if state in ACTIVE else
-                            "result_unknown" if state == "interrupted" else "completed")
+        phase = state if state in {"paused", "cancelled"} else "executing" if state in ACTIVE else "finished"
+        verdict = (
+            state
+            if state in {"paused", "cancelled"}
+            else "active"
+            if state in ACTIVE
+            else "result_unknown"
+            if state == "interrupted"
+            else "completed"
+        )
+        recovery.checkpoint(session, row, phase, verdict)
         audit(
             session,
             row.project_id,
@@ -319,6 +328,8 @@ def expire_logs(sessions):
 def reconcile(sessions, settings=None):
     with locked(sessions) as session:
         for row in rows(session):
+            if row.state == "queued" and command_controls.apply_before_launch(session, row):
+                continue
             if row.state in ACTIVE:
                 d = {
                     **row.details,
@@ -330,8 +341,14 @@ def reconcile(sessions, settings=None):
                 log(d, "平台重启，记录保留并标为待核对")
                 row.state, row.details = "interrupted", d
                 verdict, message = recovery.inspect(session, settings, row)
-                row.details = {**d, "message": message, "error_code":
-                               "PROCESS_STOP_UNCONFIRMED" if verdict == "result_unknown" else "INTERRUPTED"}
+                row.details = {
+                    **d,
+                    "message": message,
+                    "error_code": "PROCESS_STOP_UNCONFIRMED"
+                    if verdict == "result_unknown"
+                    else "INTERRUPTED",
+                }
+                _, row.details = command_controls.finish(session, row, "interrupted", dict(row.details))
                 recovery.checkpoint(session, row, "reconciled", verdict, "平台启动时确定性核对，未自动重发")
                 audit(session, row.project_id, "command_interrupted", {"run_id": row.id})
 
@@ -477,7 +494,9 @@ def read_artifact(settings, row):
     try:
         directory_fd = os.open(row.id, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=parent_fd)
         try:
-            with os.fdopen(os.open("result.json", os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=directory_fd), "rb") as stream:
+            with os.fdopen(
+                os.open("result.json", os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=directory_fd), "rb"
+            ) as stream:
                 if not stat.S_ISREG(os.fstat(stream.fileno()).st_mode):
                     raise BusinessError("ARTIFACT_CONFLICT", "结果必须是普通文件", 409)
                 raw = stream.read(16385)
@@ -485,8 +504,7 @@ def read_artifact(settings, row):
             os.close(directory_fd)
     finally:
         os.close(parent_fd)
-    if (len(raw) > 16384 or len(raw) != fact["size"]
-            or hashlib.sha256(raw).hexdigest() != fact["sha256"]):
+    if len(raw) > 16384 or len(raw) != fact["size"] or hashlib.sha256(raw).hexdigest() != fact["sha256"]:
         raise BusinessError("ARTIFACT_CONFLICT", "结果产物被修改，不能作为原结果", 409)
     try:
         return Result.model_validate_json(raw)
@@ -561,6 +579,8 @@ class Manager:
                     current = session.get(CommandRun, run_id)
                     if current.state != "queued":
                         return
+                    if command_controls.apply_before_launch(session, current):
+                        return
                     _, grant = prerequisites(session, self.settings, run.project_id, asset, run_id)
                     if grant.id != current.details["authorization_id"]:
                         raise BusinessError("AUTHORIZATION_CHANGED", "原授权已变化，不能继承执行", 409)
@@ -615,6 +635,8 @@ class Manager:
                 with locked(self.sessions) as session:
                     _, grant = prerequisites(session, self.settings, run.project_id, asset, run_id)
                     current = session.get(CommandRun, run_id)
+                    if command_controls.apply_before_launch(session, current):
+                        return
                     if grant.id != current.details["authorization_id"]:
                         raise BusinessError("AUTHORIZATION_CHANGED", "原授权已变化，不能继承执行", 409)
                     if current.details["stop_requested"] or self.shutdown.is_set():
@@ -686,12 +708,22 @@ class Manager:
                 selector.register(pipe, selectors.EVENT_READ, kind)
             while selector.get_map() or process.poll() is None:
                 with self.sessions() as session:
-                    requested = session.get(CommandRun, run_id).details["stop_requested"]
-                if requested or self.shutdown.is_set():
+                    current = session.get(CommandRun, run_id)
+                    requested = current.details["stop_requested"]
+                    control = command_controls.request(session, current)
+                if (
+                    control
+                    and control["effect"] == "pending"
+                    and asset.payload["recipe_id"] == "static_preview"
+                ):
+                    stop_state = "paused" if control["kind"] == "pause" else "cancelled"
+                    details["message"] = "预览已安全暂停" if stop_state == "paused" else "预览已安全取消"
+                    terminate(process)
+                if not stop_state and (requested or self.shutdown.is_set()):
                     stop_state = "stopped"
                     details.update(stop_requested=True, message="本次进程已停止，原文件与记录保留")
                     terminate(process)
-                elif time.monotonic() > deadline:
+                elif not stop_state and time.monotonic() > deadline:
                     stop_state = "stopped" if asset.payload["recipe_id"] == "static_preview" else "timed_out"
                     details.update(
                         error_code=None if stop_state == "stopped" else "TIMEOUT",
@@ -872,6 +904,7 @@ def install(app, sessions, settings):
             )
             session.add(row)
             session.flush()
+            command_controls.initialize(session, row)
             recovery.checkpoint(session, row, "queued", "not_executed", body.reason)
             audit(
                 session,

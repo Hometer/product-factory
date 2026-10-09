@@ -5,7 +5,9 @@ from pydantic import Field
 from .command_schemas import Confirmation, FileFact, Run
 from .patch_schemas import Contract
 
-Verdict = Literal["not_executed", "result_unknown", "completed", "active", "conflict", "stopped"]
+Verdict = Literal[
+    "not_executed", "result_unknown", "completed", "active", "conflict", "stopped", "paused", "cancelled"
+]
 
 
 class Review(Confirmation):
@@ -20,7 +22,21 @@ class Resume(Review):
 class Checkpoint(Contract):
     id: str
     created_at: str
-    phase: Literal["queued", "launch_intent", "executing", "finished", "reconciled", "reviewed", "resumed"]
+    phase: Literal[
+        "queued",
+        "launch_intent",
+        "executing",
+        "finished",
+        "reconciled",
+        "reviewed",
+        "resumed",
+        "pause_requested",
+        "cancel_requested",
+        "paused",
+        "cancelled",
+        "continued",
+        "retry_approved",
+    ]
     state: str
     verdict: Verdict
     run_hash: str

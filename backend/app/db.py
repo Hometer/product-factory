@@ -161,6 +161,18 @@ class CommandCheckpoint(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
 
 
+class CommandControl(Base):
+    __tablename__ = "command_controls"
+    __table_args__ = (UniqueConstraint("root_id", "attempt"),)
+    run_id: Mapped[str] = mapped_column(ForeignKey("command_runs.id"), primary_key=True)
+    project_id: Mapped[str] = mapped_column(ForeignKey("projects.id"), index=True)
+    root_id: Mapped[str] = mapped_column(ForeignKey("command_runs.id"), index=True)
+    parent_id: Mapped[str | None] = mapped_column(ForeignKey("command_runs.id"), nullable=True)
+    attempt: Mapped[int] = mapped_column(Integer)
+    payload: Mapped[dict] = mapped_column(JSON)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+
+
 class CommandRun(Base):
     __tablename__ = "command_runs"
     id: Mapped[str] = mapped_column(String, primary_key=True)

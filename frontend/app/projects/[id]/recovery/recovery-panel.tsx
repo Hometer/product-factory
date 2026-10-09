@@ -6,8 +6,8 @@ type Checkpoint = { id: string; created_at: string; phase: string; state: string
 type Task = { run: { id: string; asset_id: string; state: string; details: { task_id: string; step_id: string; step_instruction: string; recipe_id: string; started_at: string | null; ended_at: string | null; exit_code: number | null; error_code: string | null; stop_requested: boolean; checks: { path: string; valid: boolean }[] } }; verdict: string; message: string; completed_steps: number; total_steps: number; step_state: string; checkpoint_id: string | null; expected_hash: string; can_resume: boolean; blockers: string[]; checkpoints: Checkpoint[]; checkpoint_count: number; asset_hash: string; authorization_id: string };
 type Analysis = { id: string; state: string; attempts: { attempt: number; state: string }[]; reserved_micro: number; settled_micro: number; message: string };
 type Workspace = { tasks: Task[]; analyses: Analysis[]; task_count: number; analysis_count: number; message: string };
-const verdicts: Record<string, string> = { not_executed: "确定未执行 · 可核对继续", result_unknown: "结果未知 · 禁止重复执行", completed: "原任务已终结 · 仍需阶段验收", active: "原任务正在等待或执行", conflict: "结果产物冲突 · 需排查", stopped: "停止请求优先 · 不恢复" };
-const phases: Record<string, string> = { queued: "原批准与入队", launch_intent: "启动意图已提交", executing: "真实执行状态", finished: "终结结果已记录", reconciled: "重启核对", reviewed: "人工请求核对", resumed: "确认继续原任务" };
+const verdicts: Record<string, string> = { not_executed: "确定未执行 · 可核对继续", result_unknown: "结果未知 · 禁止重复执行", completed: "原任务已终结 · 仍需阶段验收", active: "原任务正在等待或执行", conflict: "结果产物冲突 · 需排查", stopped: "停止请求优先 · 不恢复", paused: "用户暂停 · 不自动恢复", cancelled: "用户取消 · 终态" };
+const phases: Record<string, string> = { queued: "原批准与入队", launch_intent: "启动意图已提交", executing: "真实执行状态", finished: "终结结果已记录", reconciled: "重启核对", reviewed: "人工请求核对", resumed: "确认继续原任务", pause_requested: "暂停请求已保存", cancel_requested: "取消请求已保存", paused: "暂停已生效", cancelled: "取消已生效", continued: "明确继续暂停任务", retry_approved: "安全重复已批准" };
 const steps: Record<string, string> = { pending: "尚未执行", running: "正在执行", succeeded: "本次检查通过", failed: "本次检查未通过", unknown: "结果待核对", stopped: "已停止或禁止继续" };
 const date = (value: string | null) => value ? new Date(value).toLocaleString("zh-CN") : "尚无";
 
@@ -90,7 +90,7 @@ export default function RecoveryPanel({ projectId }: { projectId: string }) {
     {error && <div role="alert" className="message error">{error} · 当前输入保留</div>}
     {message && <div role="status" className="message success">{message}</div>}
     {!workspace && !error && <p role="status">正在读取持久记录…</p>}
-    <div className="requirement-grid"><section className="panel requirement-panel">
+    <Link className="planning-entry" href={"/projects/"+projectId+"/controls"} onClick={leave}>暂停取消与有限重试 →</Link><div className="requirement-grid"><section className="panel requirement-panel">
       <div className="section-head"><h2>恢复核对</h2><button className="quiet" disabled={busy} onClick={() => act(async () => { await load(); setConfirmed(false); })}>刷新持久记录</button></div>
       <p className="hint">{workspace?.message}</p>
       <label htmlFor="recovery-task">选择已有运行（{workspace?.task_count ?? 0} 条）</label>

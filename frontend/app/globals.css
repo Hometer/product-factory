@@ -88,3 +88,10 @@ summary { cursor:pointer; min-height:44px; padding:8px 0; } details form { max-w
 .recovery-workspace .topbar { gap:16px; }
 .recovery-workspace .topbar a { overflow-wrap:anywhere; }
 .recovery-workspace .quiet { white-space:normal; overflow-wrap:anywhere; }
+
+.controls-workspace .quiet, .controls-workspace .baseline-link { white-space:normal; overflow-wrap:anywhere; }
+.controls-workspace .topbar { gap:16px; }
+.controls-workspace .planning-entry { overflow-wrap:anywhere; }
+.control-request { border-top:1px solid var(--line); padding-top:12px; margin-top:12px; }
+.controls-workspace .button-row button.primary { background:var(--accent); color:#fff; }
+.controls-workspace .button-row button.primary:hover { background:#204b38; }

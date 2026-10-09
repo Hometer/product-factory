@@ -7,7 +7,17 @@ from .patch_schemas import Contract
 
 RecipeId = Literal["python_syntax", "json_validate", "static_preview"]
 State = Literal[
-    "queued", "starting", "running", "serving", "succeeded", "failed", "timed_out", "stopped", "interrupted"
+    "queued",
+    "starting",
+    "running",
+    "serving",
+    "succeeded",
+    "failed",
+    "timed_out",
+    "stopped",
+    "interrupted",
+    "paused",
+    "cancelled",
 ]
 
 

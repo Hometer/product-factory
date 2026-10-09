@@ -207,7 +207,7 @@ def test_database_and_preview_survive_restart(setup):
     with TestClient(app3, headers=dict(client.headers)) as third:
         assert third.get(f"{PREFIX}/projects").json()["items"][0]["id"] == project["id"]
     with sqlite3.connect(settings.data_dir / "factory.sqlite3") as conn:
-        assert conn.execute("SELECT version_num FROM alembic_version").fetchone()[0] == "0007"
+        assert conn.execute("SELECT version_num FROM alembic_version").fetchone()[0] == "0008"
 
 
 def test_formats_and_sensitive_content(setup):
