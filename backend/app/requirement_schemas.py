@@ -271,6 +271,8 @@ class AnalysisCandidate(StrictModel):
 
 
 class AttemptOutput(StrictModel):
+    request_id: str | None = None
+    elapsed_ms: int | None = None
     attempt: int
     state: Literal["dispatching", "settled", "unknown", "not_sent"]
     input_tokens: int | None = None

@@ -17,7 +17,17 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from starlette.exceptions import HTTPException
 
-from . import command_controls, commands, execution, models, patches, planning, recovery, requirements
+from . import (
+    command_controls,
+    commands,
+    execution,
+    models,
+    patches,
+    planning,
+    provider_capabilities,
+    recovery,
+    requirements,
+)
 from .core import ROOT, Settings, load_settings
 from .db import AuditEvent, Preview, Project, RequestRecord, connect
 from .scanner import BusinessError, canonical, digest, scan
@@ -371,6 +381,7 @@ def create_app(settings: Settings | None = None, model_provider=None) -> FastAPI
     commands.install(app, sessions, settings)
     recovery.install(app, sessions, settings)
     command_controls.install(app, sessions, settings)
+    provider_capabilities.install(app, sessions, settings)
     planning.install(app, sessions, settings)
     requirements.install(app, sessions)
     models.install(app, sessions, settings, model_provider or models.Provider())

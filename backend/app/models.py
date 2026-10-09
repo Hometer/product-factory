@@ -14,6 +14,7 @@ import httpx
 from fastapi import Header
 from sqlalchemy import select
 
+from . import provider_capabilities
 from .core import ROOT
 from .db import ModelBudget, RequirementRecord
 from .requirement_schemas import (
@@ -92,7 +93,7 @@ def quote_valid():
 def available(settings):
     try:
         key, _ = config(settings)
-        return bool(key) and quote_valid()
+        return bool(key) and quote_valid() and MODEL == "qwen-plus-2025-12-01"
     except (OSError, BusinessError, UnicodeError):
         return False
 
@@ -199,7 +200,13 @@ class Provider:
                         raw.extend(chunk)
                         if len(raw) > 262144 or time.monotonic() - started > 65:
                             raise ProviderError("MODEL_RESPONSE_INVALID", True)
-                return json.loads(raw)
+                value = json.loads(raw)
+                if not isinstance(value, dict):
+                    raise ProviderError("MODEL_RESPONSE_INVALID", True)
+                value["_factory_request_id"] = provider_capabilities.safe_id(
+                    response.headers.get("x-request-id"), (key,)
+                )
+                return value
         except ProviderError:
             raise
         except Exception:
@@ -247,13 +254,31 @@ def process_run(sessions, settings, provider, identifier, stop=None):
                 input_bound = preview.payload["input_bound"]
                 attempts = [*item.payload["attempts"], {"attempt": attempt_number, "state": "dispatching"}]
                 item.payload = {**item.payload, "attempts": attempts}
+            call_started = time.monotonic()
             try:
                 receipt = provider.send(key, base, selected, correction=attempt_number > 1)
+                elapsed_ms = max(0, int((time.monotonic() - call_started) * 1000))
             except ProviderError as exc:
                 with locked(sessions) as session:
                     item = owned_record(session, identifier, pid, "run")
                     attempts = item.payload["attempts"]
-                    attempts[-1].update(state="unknown" if exc.sent else "not_sent", error_code=exc.code)
+                    elapsed_ms = max(0, int((time.monotonic() - call_started) * 1000))
+                    provider_capabilities.observe(
+                        session,
+                        item,
+                        preview,
+                        attempt_number,
+                        elapsed_ms,
+                        secrets=(key, settings.token),
+                        sent=exc.sent,
+                        cost=None if exc.sent else 0,
+                        error=exc.code,
+                    )
+                    attempts[-1].update(
+                        state="unknown" if exc.sent else "not_sent",
+                        error_code=exc.code,
+                        elapsed_ms=elapsed_ms,
+                    )
                     item.payload = {**item.payload, "attempts": attempts}
                     settle(
                         session,
@@ -268,6 +293,8 @@ def process_run(sessions, settings, provider, identifier, stop=None):
                     )
                 return
             try:
+                if isinstance(receipt, dict) and receipt.get("model") not in (None, MODEL):
+                    raise ValueError("model receipt mismatch")
                 usage = receipt["usage"]
                 ins, outs = usage["prompt_tokens"], usage["completion_tokens"]
                 if (
@@ -281,6 +308,24 @@ def process_run(sessions, settings, provider, identifier, stop=None):
             except (KeyError, TypeError, ValueError):
                 with locked(sessions) as session:
                     item = owned_record(session, identifier, pid, "run")
+                    request_id = provider_capabilities.observe(
+                        session,
+                        item,
+                        preview,
+                        attempt_number,
+                        elapsed_ms,
+                        receipt,
+                        secrets=(key, settings.token),
+                        error="USAGE_UNKNOWN",
+                    )
+                    attempts = item.payload["attempts"]
+                    attempts[-1].update(
+                        state="unknown",
+                        error_code="USAGE_UNKNOWN",
+                        request_id=request_id,
+                        elapsed_ms=elapsed_ms,
+                    )
+                    item.payload = {**item.payload, "attempts": attempts}
                     settle(
                         session,
                         item,
@@ -290,6 +335,8 @@ def process_run(sessions, settings, provider, identifier, stop=None):
                 return
             candidate = None
             try:
+                if receipt["choices"][0].get("finish_reason") not in (None, "stop"):
+                    raise ValueError("incomplete output")
                 candidate = AnalysisCandidate.model_validate_json(receipt["choices"][0]["message"]["content"])
                 allowed = {f["key"] for f in selected}
                 if any(
@@ -304,8 +351,24 @@ def process_run(sessions, settings, provider, identifier, stop=None):
             with locked(sessions) as session:
                 item = owned_record(session, identifier, pid, "run")
                 attempts = item.payload["attempts"]
+                request_id = provider_capabilities.observe(
+                    session,
+                    item,
+                    preview,
+                    attempt_number,
+                    elapsed_ms,
+                    receipt,
+                    secrets=(key, settings.token),
+                    candidate=candidate,
+                    ins=ins,
+                    outs=outs,
+                    cost=cost,
+                    error=None if candidate else "MODEL_STRUCTURE_INVALID",
+                )
                 attempts[-1].update(
                     state="settled",
+                    request_id=request_id,
+                    elapsed_ms=elapsed_ms,
                     input_tokens=ins,
                     output_tokens=outs,
                     cost_micro=cost,

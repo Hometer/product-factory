@@ -95,3 +95,12 @@ summary { cursor:pointer; min-height:44px; padding:8px 0; } details form { max-w
 .control-request { border-top:1px solid var(--line); padding-top:12px; margin-top:12px; }
 .controls-workspace .button-row button.primary { background:var(--accent); color:#fff; }
 .controls-workspace .button-row button.primary:hover { background:#204b38; }
+.provider-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:20px; margin:24px 0; }
+.workbench-topbar { flex-wrap:wrap; gap:12px; height:auto; min-height:80px; padding-top:16px; padding-bottom:16px; }
+.provider-workspace .topbar, .provider-workspace .section-head { gap:16px; flex-wrap:wrap; }
+.provider-workspace .panel { min-width:0; }
+.provider-workspace .path { overflow-wrap:anywhere; }
+.provider-workspace .capability-card h2 { font-size:19px; }
+.provider-receipts { margin-top:24px; }
+@media (max-width:900px) { .provider-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+@media (max-width:600px) { .provider-grid { grid-template-columns:1fr; } }

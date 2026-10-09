@@ -87,7 +87,7 @@ export default function Workbench() {
   }
 
   return <div className="shell">
-    <header className="topbar"><Link className="brand" href="/"><span className="brandmark">工</span>产品工厂</Link><span className="local"><span />本机工作台</span></header>
+    <header className="topbar workbench-topbar"><Link className="brand" href="/"><span className="brandmark">工</span>产品工厂</Link><Link href="/settings/provider">AI 提供方与能力 →</Link><span className="local"><span />本机工作台</span></header>
     <main>
       <div className="intro"><div><p className="eyebrow">PRODUCT FACTORY</p><h1>你的产品工作台</h1><p className="subtitle">把项目与资料放在一起，清楚地接着做下一步。</p></div><div className="scope"><strong>项目登记与需求整理</strong><span>{modelEnabled ? "模型已配置 · 分析需资料授权" : "当前范围 · 模型未启用"}</span></div></div>
       {error && <div role="alert" className="message error">{error}<button onClick={reload}>重新读取</button></div>}
