@@ -165,6 +165,7 @@ class Snapshot(Contract):
     evaluation_basis: dict
     dependencies: dict[str, str | None]
     change_control: dict | None = None
+    template_stamp: dict | None = None
 
 
 class PackagePayload(Contract):

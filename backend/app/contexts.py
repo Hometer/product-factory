@@ -123,6 +123,11 @@ def collect(session, settings, pid, stage, task_id):
     )
     sources: list[dict] = []
     warnings = []
+    from . import templates
+
+    template_components, _, _, template_stamp, _ = templates.effective(session, pid)
+    if template_stamp:
+        basis["template_stamp"] = template_stamp
 
     def add(
         identifier,
@@ -161,6 +166,18 @@ def collect(session, settings, pid, stage, task_id):
             chars=len(text),
         )
         sources.append({"source": source, "content": text[:SOURCE_LIMIT]})
+
+    if template_stamp:
+        add(
+            "template:effective",
+            "template",
+            "项目固定模板与定制",
+            template_stamp["revision_id"],
+            template_components,
+            "本机生效规则快照",
+            href="/projects/" + pid + "/templates",
+            provenance="human_rule_template",
+        )
 
     for field in draft["fields"]:
         origin = field["source"]
@@ -533,6 +550,8 @@ def install(app, sessions, settings):
                     notice=NOTICE,
                 )
             ).model_dump()
+            if payload["basis"]["template_stamp"] is None:
+                payload["basis"].pop("template_stamp")
             row = requirements.record(session, project_id, "context_bundle", payload)
             requirements.audit(
                 session,

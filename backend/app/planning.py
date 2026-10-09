@@ -499,6 +499,11 @@ def plan_issues(session, settings, pid, row):
         found.append(issue(exc.code, exc.message, row.id))
     base = owned_record(session, row.baseline_id, pid, "baseline")
     found.extend(plan_checks(row.payload["text"], base.payload))
+    from . import templates
+
+    found.extend(
+        issue("TEMPLATE_REVIEW_REQUIRED", message, row.id) for message in templates.blockers(session, pid)
+    )
     return found
 
 

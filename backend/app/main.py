@@ -30,6 +30,7 @@ from . import (
     provider_capabilities,
     recovery,
     requirements,
+    templates,
     verification,
 )
 from .core import ROOT, Settings, load_settings
@@ -360,6 +361,8 @@ def create_app(settings: Settings | None = None, model_provider=None) -> FastAPI
                                 },
                             )
                         )
+                        session.flush()
+                        templates.pin_initial(session, project.id)
                     item.confirmed_project_id = project.id
                 response = project_output(project)
                 session.add(RequestRecord(key=idempotency_key, request_hash=request_hash, response=response))
@@ -387,6 +390,7 @@ def create_app(settings: Settings | None = None, model_provider=None) -> FastAPI
     command_controls.install(app, sessions, settings)
     provider_capabilities.install(app, sessions, settings)
     costs.install(app, sessions, settings)
+    templates.install(app, sessions, settings)
     contexts.install(app, sessions, settings)
     verification.install(app, sessions, settings)
     from . import acceptance, artifacts, defects, delivery

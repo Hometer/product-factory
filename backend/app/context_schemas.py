@@ -14,11 +14,14 @@ class Basis(StrictModel):
     baseline_id: str | None
     technical_id: str | None
     planning_id: str | None
+    template_stamp: dict | None = None
 
 
 class Source(StrictModel):
     id: str
-    kind: Literal["requirement", "baseline", "decision", "technical", "plan", "task", "history", "file"]
+    kind: Literal[
+        "requirement", "baseline", "decision", "technical", "plan", "task", "history", "file", "template"
+    ]
     title: str
     version: str
     sha256: str

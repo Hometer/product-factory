@@ -361,7 +361,11 @@ def collect(session, settings, pid, stage_id, declarations=None):
         evaluation_basis=evaluations.basis(session, settings, pid),
         dependencies=dependencies,
     )
-    from . import defects
+    from . import defects, templates
+
+    template_stamp = templates.effective(session, pid)[3]
+    if template_stamp:
+        snapshot["template_stamp"] = template_stamp
 
     _, change_control = defects.gate(session, settings, pid)
     if change_control["records"] or change_control["sources"]:
