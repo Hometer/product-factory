@@ -135,7 +135,7 @@ def create_app(settings: Settings | None = None, model_provider=None) -> FastAPI
             worker.join(timeout=65)
             engine.dispose()
 
-    app = FastAPI(title="产品工厂", lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
+    app = FastAPI(title="LaunchFlow 产品工厂", lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
     app.state.sessions = sessions
 
     @app.middleware("http")

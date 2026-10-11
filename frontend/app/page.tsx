@@ -88,7 +88,7 @@ export default function Workbench() {
   }
 
   return <div className="shell">
-    <header className="topbar workbench-topbar"><Link className="brand" href="/"><span className="brandmark">工</span>产品工厂</Link><Link href="/settings/provider">AI 提供方与能力 →</Link><span className="local"><span />本机工作台</span></header>
+    <header className="topbar workbench-topbar"><Link className="brand" href="/"><span className="brandmark">工</span>LaunchFlow</Link><Link href="/settings/provider">AI 提供方与能力 →</Link><span className="local"><span />本机工作台</span></header>
     <main>
       <div className="intro"><div><p className="eyebrow">PRODUCT FACTORY</p><h1>你的产品工作台</h1><p className="subtitle">把项目与资料放在一起，清楚地接着做下一步。</p></div><div className="scope"><strong>项目登记与需求整理</strong><span>{modelEnabled ? "模型已配置 · 分析需资料授权" : "当前范围 · 模型未启用"}</span></div></div>
       {error && <div role="alert" className="message error">{error}<button onClick={reload}>重新读取</button></div>}
@@ -107,7 +107,7 @@ export default function Workbench() {
           <div className="tabs" role="group" aria-label="登记方式"><button type="button" aria-pressed={mode === "import"} onClick={() => selectMode("import")} disabled={busy}>接入已有目录</button><button type="button" aria-pressed={mode === "create"} onClick={() => selectMode("create")} disabled={busy}>新建项目</button></div>
           <p className="hint">{mode === "import" ? "先读取资料清单，确认后保存项目信息。原目录保持不变。" : "先核对将创建的文件，确认后创建新目录。已有内容不会被覆盖。"}</p>
           <form onSubmit={makePreview}><fieldset disabled={busy}>
-            <label htmlFor="name">产品名称 <span>必填</span></label><input id="name" value={form.name} onChange={e => change("name", e.target.value)} maxLength={60} required placeholder="例如：产品工厂"/>
+            <label htmlFor="name">产品名称 <span>必填</span></label><input id="name" value={form.name} onChange={e => change("name", e.target.value)} maxLength={60} required placeholder="例如：LaunchFlow"/>
             <label htmlFor="target">目标用户</label><input id="target" value={form.target_user} onChange={e => change("target_user", e.target.value)} maxLength={300} required placeholder="例如：管理多个项目的产品负责人"/>
             <label htmlFor="task">核心任务</label><textarea id="task" value={form.core_task} onChange={e => change("core_task", e.target.value)} maxLength={1000} required rows={2} placeholder="这个产品帮助用户完成什么？"/>
             <label htmlFor="path">{mode === "import" ? "已有目录" : "新项目目录"}</label><input id="path" value={form.path} onChange={e => change("path", e.target.value)} maxLength={4096} required spellCheck={false}/>

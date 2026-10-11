@@ -1,8 +1,8 @@
 <div align="center">
 
-![产品工厂](docs/assets/readme-cover.svg)
+![LaunchFlow 产品工厂](docs/assets/readme-cover.svg)
 
-# 产品工厂
+# LaunchFlow｜AI Coding 产品工厂与 Harness 工具链
 
 **把产品与资料放在一起，清楚地接着做。**
 
@@ -12,11 +12,13 @@
 
 ## 项目介绍
 
-给本机单人管理多个产品的研发工作台。记录需求与基线，组织规划、执行准备、产物、验证、预算和接续事实；所有确认与历史都可追溯。
+针对多个 AI 产品开发中需求材料重复准备、实现偏离范围及验收标准不统一的问题，建立从需求定义、任务拆解到辅助开发、评审修复与交付验收的工作流程。
 
-## 界面预览
+[完整项目介绍与核心职责](docs/项目介绍.md)
 
-![产品工厂实际界面](docs/assets/readme-preview.png)
+## 历史界面预览
+
+![LaunchFlow 产品工厂实际界面](docs/assets/readme-preview.png)
 
 实际 A20 接续与审计页面，来自本地合成工程演示。当前无真实模型效果验收，不以页面上的历史记录代替新的授权或通过。
 
@@ -64,7 +66,7 @@ A1—A20 有工程与证据记录，完整 FR01—FR24 首版及真实模型效�
 
 `frontend/` 为 Next.js 工作台，`backend/` 为 FastAPI / SQLite / Alembic，`scripts/run_local.py` 管理本项目服务。
 
-[文档导航](docs/README.md) · [当前需求](docs/PRD/%E4%BA%A7%E5%93%81%E5%B7%A5%E5%8E%82%E5%AE%8C%E6%95%B4%E4%BA%A7%E5%93%81%E9%9C%80%E6%B1%82%E6%96%87%E6%A1%A3.docx) · [配置与检查](docs/配置说明.md)
+[文档导航](docs/README.md) · [当前需求](docs/PRD/LaunchFlow%20%E4%BA%A7%E5%93%81%E5%B7%A5%E5%8E%82%E5%AE%8C%E6%95%B4%E4%BA%A7%E5%93%81%E9%9C%80%E6%B1%82%E6%96%87%E6%A1%A3.docx) · [配置与检查](docs/配置说明.md)
 
 <details>
 <summary>展开开发手册、需求与验收记录</summary>

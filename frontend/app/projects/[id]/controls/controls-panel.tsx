@@ -46,7 +46,7 @@ export default function ControlsPanel({ projectId }: { projectId: string }) {
     setSelected(result.run.id); setReason(""); setConfirmed(false); await load();
     setMessage(action === "pause" || action === "cancel" ? "请求已保存，请以请求的生效状态和最终运行结果为准。" : "明确批准已保存；请查看原任务关联和当前尝试结果，刷新不会重复执行。");
   }
-  return <div className="shell controls-workspace"><header className="topbar"><Link className="brand" href="/" onClick={leave}><span className="brandmark">工</span>产品工厂</Link><Link href={"/projects/" + projectId + "/commands"} onClick={leave}>← 命令与运行记录</Link></header><main>
+  return <div className="shell controls-workspace"><header className="topbar"><Link className="brand" href="/" onClick={leave}><span className="brandmark">工</span>LaunchFlow</Link><Link href={"/projects/" + projectId + "/commands"} onClick={leave}>← 命令与运行记录</Link></header><main>
     <section className="intro"><div><span className="eyebrow">任务控制 · FR12</span><h1>暂停、取消与安全重试</h1><p className="subtitle">请求与生效分别记录 · 未知结果不重复执行</p></div><div className="scope">最多初次加两次重试。静态服务重新启动也计入；新尝试保留原结果。</div></section>
     <Link className="planning-entry" href={"/projects/" + projectId + "/recovery"} onClick={leave}>查看恢复核对与检查点历史 →</Link>
     {error && <div role="alert" className="message error">{error} · 当前输入保留</div>}{message && <div role="status" className="message success">{message}</div>}

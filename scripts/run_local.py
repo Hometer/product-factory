@@ -29,7 +29,7 @@ def main() -> int:
         print("尚未准备运行环境，请按 README 的开发安装步骤准备后再启动。")
         return 1
     if not all(available(port) for port in (8765, 3000)):
-        print("本机端口 8765 或 3000 已占用。请先关闭之前的产品工厂窗口；不会结束其他程序。")
+        print("本机端口 8765 或 3000 已占用。请先关闭之前的LaunchFlow 产品工厂窗口；不会结束其他程序。")
         return 1
     children = []
     environment = os.environ.copy()
@@ -75,7 +75,7 @@ def main() -> int:
         else:
             print("启动超时，请检查本机服务。")
             return 1
-        print("产品工厂已启动：http://127.0.0.1:3000；在此终端按 Control+C 停止。")
+        print("LaunchFlow 产品工厂已启动：http://127.0.0.1:3000；在此终端按 Control+C 停止。")
         if "--no-browser" not in sys.argv:
             subprocess.run(["open", "http://127.0.0.1:3000"], check=False)
         while all(child.poll() is None for child in children):

@@ -14,7 +14,7 @@ export default function ProviderPanel() {
     catch (e) { setError(e instanceof Error ? e.message : "读取失败，请重新核对"); } finally { setBusy(false); }
   }, []);
   useEffect(() => { let live = true; fetch("/api/factory/model/provider", { cache: "no-store" }).then(async r => { const value = await r.json(); if (!r.ok) throw new Error(value.error?.message ?? "提供方状态暂不可读"); if (live) setData(value); }).catch(e => { if (live) setError(e.message); }).finally(() => { if (live) setBusy(false); }); return () => { live = false; }; }, []);
-  return <div className="shell provider-workspace"><header className="topbar"><Link className="brand" href="/"><span className="brandmark">工</span>产品工厂</Link><Link href="/">← 产品工作台</Link></header><main>
+  return <div className="shell provider-workspace"><header className="topbar"><Link className="brand" href="/"><span className="brandmark">工</span>LaunchFlow</Link><Link href="/">← 产品工作台</Link></header><main>
     <section className="intro"><div><p className="eyebrow">AI 服务与能力</p><h1>清楚知道模型能做什么</h1><p className="subtitle">平台已接入、离线契约与真实观察分别展示。</p></div><div className="scope">保存密钥不调用模型。真实效果须通过已批准的项目样例验证。</div></section>
     {error && <div role="alert" className="message error">{error} · {data ? "下方为上次读取状态，不能据此开始调用" : "手动需求编辑仍可使用"}</div>}
     <section className="panel"><div className="section-head"><h2>提供方与配置状态</h2><button className="quiet" disabled={busy} onClick={() => void load()}>刷新能力与回执</button></div>{!data && !error && <p role="status">正在读取本机记录…</p>}

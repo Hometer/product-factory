@@ -82,7 +82,7 @@ export default function RecoveryPanel({ projectId }: { projectId: string }) {
     setReason(""); setConfirmed(false); await load(); setMessage("继续请求已受理，沿用任务 " + id + "；请查看最终状态。");
   }
   return <div className="shell recovery-workspace"><header className="topbar">
-    <Link className="brand" href="/" onClick={leave}><span className="brandmark">工</span>产品工厂</Link>
+    <Link className="brand" href="/" onClick={leave}><span className="brandmark">工</span>LaunchFlow</Link>
     <Link href={"/projects/" + projectId + "/commands"} onClick={leave}>← 命令与运行记录</Link>
   </header><main>
     <section className="intro"><div><span className="eyebrow">任务接续 · FR11</span><h1>先核对，再继续原任务</h1><p className="subtitle">刷新不新建任务 · 未知结果不重发</p></div>
